@@ -7,6 +7,7 @@ import datetime
 import json
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+import argparse
 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -92,7 +93,7 @@ def train_evaluate_model(model, train_loader, test_loader, epochs, config):
                 break
 
             model.train()
-            
+
     plot_learning_curves(training_losses, validation_losses)
     return model
 
@@ -160,6 +161,10 @@ def main(ticker):
     save_model(model, f'model/{ticker}_model_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.pth')
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description='Train and evaluate an LSTM model for given stock ticker')
+    parser.add_argument('ticker', type=str, help='Stock ticker symbol (e.g., AAPL, GOOGL)')
+    args = parser.parse_args()
+    
+    main(args.ticker)
 
 
