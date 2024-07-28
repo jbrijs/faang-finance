@@ -115,7 +115,7 @@ def final_evaluation(model, test_loader):
     print(f'Final Test Loss: {average_test_loss}')
     logging.info(f'Final Test Loss: {average_test_loss}')
 
-def load_config(filepath='config/appl_model_config.json'):
+def load_config(filepath='config/aapl_model_config.json'):
     with open(filepath, 'r') as file:
         config = json.load(file)
     return config
@@ -135,13 +135,13 @@ def plot_learning_curves(training_losses, validation_losses):
 def main(ticker):
     logging.info("Starting training...")    
     config = load_config()
-    logging.info(f"Configuration loaded: {config}")
+    logging.info(f"Configuration loaded")
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    X_train_sequences = torch.load(f'data/{ticker}_sequences/X_train_sequences.pt').to(device)
-    y_train_sequences = torch.load(f'data/{ticker}_sequences/y_train_sequences.pt').to(device)
-    X_test_sequences = torch.load(f'data/{ticker}_sequences/X_test_sequences.pt').to(device)
-    y_test_sequences = torch.load(f'data/{ticker}_sequences/y_test_sequences.pt').to(device)
+    X_train_sequences = torch.load(f'data/{ticker}_sequences/X_train_sequences.pt',  weights_only=True).to(device)
+    y_train_sequences = torch.load(f'data/{ticker}_sequences/y_train_sequences.pt',  weights_only=True).to(device)
+    X_test_sequences = torch.load(f'data/{ticker}_sequences/X_test_sequences.pt',  weights_only=True).to(device)
+    y_test_sequences = torch.load(f'data/{ticker}_sequences/y_test_sequences.pt',  weights_only=True).to(device)
     
     train_data = TensorDataset(X_train_sequences.to(device), y_train_sequences)
     train_loader = DataLoader(train_data, batch_size=config['batch_size'], shuffle=True)

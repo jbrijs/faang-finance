@@ -79,11 +79,11 @@ def create_sequences(input_data, seq_length):
 
     for i in range(len(input_data) - seq_length):
         x = input_data[i:(i+seq_length)] 
-        y = input_data[i + seq_length]
+        y = input_data[i + seq_length, 0]
         xs.append(x)
         ys.append(y)
 
-    return torch.stack(xs), torch.stack(ys)
+    return torch.stack(xs), torch.tensor(ys, dtype=torch.float32)
 
 
 def main(ticker):
@@ -97,6 +97,11 @@ def main(ticker):
     seq_length = 10  # Define sequence length
     X_train_sequences, y_train_sequences = create_sequences(X_train_tensor, seq_length)
     X_test_sequences, y_test_sequences = create_sequences(X_test_tensor, seq_length)
+
+    print(f"X_train_sequence shape: {X_train_sequences.shape}")
+    print(f"X_test_sequence shape: {X_test_sequences.shape}")
+    print(f"y_train_sequence shape: {y_train_sequences.shape}")
+    print(f"y_test_sequence shape: {y_test_sequences.shape}")
 
     # Save tensors
     torch.save(X_train_sequences, 'data/AAPL_sequences/X_train_sequences.pt')
