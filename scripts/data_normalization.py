@@ -27,7 +27,7 @@ def apply_splits(file_name, splits):
     return df
 
 def main(ticker):
-    filepath = f'./data/{ticker}_daily_data.csv'
+    filepath = f'../data/{ticker}_daily_data.csv'
     adjusted_df = apply_splits(filepath, appl_splits)
     adjusted_df.to_csv(filepath, index=False)
 

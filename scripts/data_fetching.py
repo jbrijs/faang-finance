@@ -16,7 +16,7 @@ def fetch_and_save_data(ticker):
     if response.status_code == 200:
         data = response.json()
         time_series = data.get('Time Series (Daily)', {})
-        filename = f"./data/{ticker}_daily_data.csv"
+        filename = f"../data/{ticker}_daily_data.csv"
         keys = ['time_stamp', 'open', 'high', 'low', 'close', 'volume']
         with open(filename, 'w', newline='') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=keys)

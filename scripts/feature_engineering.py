@@ -53,7 +53,7 @@ def get_files(directory):
     return [entry for entry in base_path.iterdir() if entry.is_file()]
 
 def main(ticker):
-    file = f'.././data/{ticker}_daily_data.csv'
+    file = f'../data/{ticker}_daily_data.csv'
 
     df = pd.read_csv(file)
     df = reverse_dataframe(df)

@@ -84,7 +84,7 @@ def create_sequences(input_data, seq_length):
 
 
 def main(ticker):
-    file = f'./data/{ticker}_daily_data.csv'
+    file = f'../data/{ticker}_daily_data.csv'
 
     data_frame = prepare_data(file)
     training_data = train_test_split(data_frame)
