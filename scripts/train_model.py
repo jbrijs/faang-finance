@@ -4,6 +4,9 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 import logging
 import datetime
+import json
+from tqdm import tqdm
+
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -43,14 +46,16 @@ class EarlyStopping:
             self.best_loss = val_loss
             self.counter = 0
 
-def train_evaluate_model(model, train_loader, test_loader, epochs):
+def train_evaluate_model(model, train_loader, test_loader, epochs, config):
     criterion = nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    early_stopping = EarlyStopping(patience=20, min_delta=0.001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=config['learning_rate'])
+    early_stopping = EarlyStopping(patience=config['patience'], min_delta=config['min_delta'])
     
     model.train()
     for epoch in range(epochs):
         total_loss = 0
+        
+        train_iterator = tqdm(train_loader, desc=f'Epoch {epoch + 1}/{epochs}', total=len(train_loader))
         for X_batch, y_batch in train_loader:
             optimizer.zero_grad()
             outputs = model(X_batch)
@@ -86,7 +91,27 @@ def save_model(model, path):
     torch.save(model.state_dict(), path)
     print(f"Model saved to {path}")
 
+def final_evaluation(model, test_loader):
+    model.eval()
+    criterion = nn.MSELoss()
+    total_test_loss = 0
+    with torch.no_grad():
+        for X_batch, y_batch in tqdm(test_loader, desc='Final Evaluation', total=len(test_loader)):
+            outputs = model(X_batch)
+            loss = criterion(outputs.squeeze(), y_batch)
+            total_test_loss += loss.item()
+
+    average_test_loss = total_test_loss / len(test_loader)
+    print(f'Final Test Loss: {average_test_loss}')
+    logging.info(f'Final Test Loss: {average_test_loss}')
+
+def load_config(filepath='config/appl_model_config.json'):
+    with open(filepath, 'r') as file:
+        config = json.load(file)
+    return config
+
 def main(ticker):
+    config = load_config()
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     X_train_sequences = torch.load(f'data/{ticker}_sequences/X_train_sequences.pt').to(device)
@@ -94,16 +119,17 @@ def main(ticker):
     X_test_sequences = torch.load(f'data/{ticker}_sequences/X_test_sequences.pt').to(device)
     y_test_sequences = torch.load(f'data/{ticker}_sequences/y_test_sequences.pt').to(device)
     
-    train_data = TensorDataset(X_train_sequences.to(device), y_test_sequences.to(device))
-    train_loader = DataLoader(train_data, batch_size=64, shuffle=True)
+    train_data = TensorDataset(X_train_sequences.to(device), y_train_sequences)
+    train_loader = DataLoader(train_data, batch_size=config['batch_size'], shuffle=True)
     test_data = TensorDataset(X_test_sequences, y_test_sequences)
-    test_loader = DataLoader(test_data, batch_size=64, shuffle=False)
+    test_loader = DataLoader(test_data, batch_size=config['batch_size'], shuffle=False)
 
     num_features = X_train_sequences.shape[2]
-    model = LSTMModel(num_features, hidden_dim=50, num_layers=2, output_size=1)
+    model = LSTMModel(num_features, hidden_dim=config['hidden_dim'], num_layers=config['num_layers'], output_size=1)
     model.to(device)
 
-    model = train_evaluate_model(model, train_loader, test_loader, epochs=500)
+    model = train_evaluate_model(model, train_loader, test_loader, epochs=config['epochs'], config=config)
+    final_evaluation(model, test_loader)
     save_model(model, f'model/{ticker}_model_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.pth')
 
 if __name__ == '__main__':
