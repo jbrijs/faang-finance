@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "faang-finance"
+version = "0.1.0"
+description = ""
+authors = ["jbrijs <joebrijs@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+Flask = "^3.0.3"
+requests = "^2.28"  # Adjust the version as per your requirement
+python-dotenv = "^0.21.0"  # This is the correct package name for dotenv
+pandas = "^2.2.2"
+numpy = "^1.26.4"
+tensorflow = "^2.16.1"
+keras = "^3.3.3"
+pathlib = "^1.0.1"
+torch = "^2.4.0"
+matplotlib = "^3.9.1"
+scikit-learn = "^1.5.1"
+
+[tool.poetry.group.dev.dependencies]
+# Include any development-specific dependencies here; e.g., testing libraries
+ipykernel = "^6.29.5"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
