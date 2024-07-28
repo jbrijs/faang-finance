@@ -61,7 +61,7 @@ def train_evaluate_model(model, train_loader, test_loader, epochs, config):
         total_loss = 0
 
         train_iterator = tqdm(train_loader, desc=f'Epoch {epoch + 1}/{epochs}', total=len(train_loader))
-        for X_batch, y_batch in train_loader:
+        for X_batch, y_batch in train_iterator:
             optimizer.zero_grad()
             outputs = model(X_batch)
             loss = criterion(outputs.squeeze(), y_batch)
@@ -74,25 +74,24 @@ def train_evaluate_model(model, train_loader, test_loader, epochs, config):
 
         logging.info(f'Epoch {epoch+1}, Average Training Loss: {average_train_loss}')
 
-        if epoch % 10 == 0:  # Evaluation every 10 epochs
-            model.eval()
-            total_test_loss = 0
-            with torch.no_grad():
-                for X_batch, y_batch in test_loader:
-                    outputs = model(X_batch)
-                    loss = criterion(outputs.squeeze(), y_batch)
-                    total_test_loss += loss.item()
-            average_test_loss = total_test_loss / len(test_loader)
-            validation_losses.append(average_test_loss)
+        model.eval()
+        total_test_loss = 0
+        with torch.no_grad():
+            for X_batch, y_batch in test_loader:
+                outputs = model(X_batch)
+                loss = criterion(outputs.squeeze(), y_batch)
+                total_test_loss += loss.item()
+        average_test_loss = total_test_loss / len(test_loader)
+        validation_losses.append(average_test_loss)
 
-            logging.info(f'Epoch {epoch+1}, Test Loss: {average_test_loss}')
+        logging.info(f'Epoch {epoch+1}, Test Loss: {average_test_loss}')
 
-            early_stopping(average_test_loss)
-            if early_stopping.early_stop:
-                logging.info("Early stopping triggered")
-                break
+        early_stopping(average_test_loss)
+        if early_stopping.early_stop:
+            logging.info("Early stopping triggered")
+            break
 
-            model.train()
+        model.train()
 
     plot_learning_curves(training_losses, validation_losses)
     return model
@@ -158,7 +157,7 @@ def main(ticker):
     logging.info("Starting final evaluation...")
     final_evaluation(model, test_loader)
     
-    save_model(model, f'model/{ticker}_model_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.pth')
+    save_model(model, f'models/{ticker}_model_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.pth')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train and evaluate an LSTM model for given stock ticker')
