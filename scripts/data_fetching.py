@@ -5,13 +5,6 @@ import os
 from dotenv import load_dotenv
 import argparse
 
-'''
-TODO: Find first date for each ticker. 
-Set time_from to the first data at midnight
-Look at the last date and time from the response
-Set that as the new time_from. Repeat until date is equal
-'''
-# symbols = ['META', 'AMZN', 'AAPL', 'NFLX', 'GOOG', 'NVDA', 'MSFT']
 
 def fetch_and_save_data(ticker):
     load_dotenv()
