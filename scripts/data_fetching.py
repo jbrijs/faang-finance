@@ -29,9 +29,9 @@ def fetch_and_save_data(ticker):
                        'close': daily_data.get('4. close', ''),
                        'volume': daily_data.get('5. volume', '')}
                 writer.writerow(row)
-        print(f"Data for {symbol} written to {filename}")
+        print(f"Data for {ticker} written to {filename}")
     else:
-        print(f"Failed to fetch data for {symbol}")
+        print(f"Failed to fetch data for {ticker}")
 
 
 

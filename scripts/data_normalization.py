@@ -1,5 +1,6 @@
 
 import pandas as pd
+import argparse
 
 appl_splits = {
     '2020-08-28': 4,
@@ -25,9 +26,14 @@ def apply_splits(file_name, splits):
 
     return df
 
-def main():
-    adjusted_df = apply_splits('./data/AAPL_daily_data.csv', appl_splits)
-    adjusted_df.to_csv('./data/AAPL_daily_data_splits.csv', index=False)
+def main(ticker):
+    filepath = f'./data/{ticker}_daily_data.csv'
+    adjusted_df = apply_splits(filepath, appl_splits)
+    adjusted_df.to_csv(filepath, index=False)
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description='Fetch data for a specific stock ticker.')
+    parser.add_argument('ticker', type=str, help='Stock ticker symbol')
+    args = parser.parse_args()
+
+    main(args.ticker)
