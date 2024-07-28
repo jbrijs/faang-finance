@@ -83,7 +83,7 @@ def create_sequences(input_data, seq_length):
         xs.append(x)
         ys.append(y)
 
-    return torch.stack(xs), torch.tensor(ys, dtype=torch.float32)
+    return torch.stack(xs), torch.stack(ys)
 
 
 def main(ticker):

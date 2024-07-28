@@ -51,10 +51,10 @@ def train_evaluate_model(model, train_loader, test_loader, epochs):
 def main(ticker):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    X_train_sequences = torch.load(f'../data/{ticker}_sequences/X_train_sequences.pt').to(device)
-    y_train_sequences = torch.load(f'../data/{ticker}_sequences/y_train_sequences.pt').to(device)
-    X_test_sequences = torch.load(f'../data/{ticker}_sequences/X_test_sequences.pt').to(device)
-    y_test_sequences = torch.load(f'../data/{ticker}_sequences/y_test_sequences.pt').to(device)
+    X_train_sequences = torch.load(f'data/{ticker}_sequences/X_train_sequences.pt').to(device)
+    y_train_sequences = torch.load(f'data/{ticker}_sequences/y_train_sequences.pt').to(device)
+    X_test_sequences = torch.load(f'data/{ticker}_sequences/X_test_sequences.pt').to(device)
+    y_test_sequences = torch.load(f'data/{ticker}_sequences/y_test_sequences.pt').to(device)
     
     train_data = TensorDataset(X_train_sequences.to(device), y_test_sequences.to(device))
     train_loader = DataLoader(train_data, batch_size=64, shuffle=True)
