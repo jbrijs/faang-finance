@@ -6,7 +6,7 @@ import logging
 import datetime
 import json
 from tqdm import tqdm
-import matplotlib
+import matplotlib.pyplot as plt
 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -52,6 +52,9 @@ def train_evaluate_model(model, train_loader, test_loader, epochs, config):
     optimizer = torch.optim.Adam(model.parameters(), lr=config['learning_rate'])
     early_stopping = EarlyStopping(patience=config['patience'], min_delta=config['min_delta'])
     
+    training_losses = []
+    validation_losses = []
+
     model.train()
     for epoch in range(epochs):
         total_loss = 0
@@ -66,6 +69,8 @@ def train_evaluate_model(model, train_loader, test_loader, epochs, config):
             total_loss += loss.item()
 
         average_train_loss = total_loss / len(train_loader)
+        training_losses.append(average_train_loss)
+
         logging.info(f'Epoch {epoch+1}, Average Training Loss: {average_train_loss}')
 
         if epoch % 10 == 0:  # Evaluation every 10 epochs
@@ -77,6 +82,8 @@ def train_evaluate_model(model, train_loader, test_loader, epochs, config):
                     loss = criterion(outputs.squeeze(), y_batch)
                     total_test_loss += loss.item()
             average_test_loss = total_test_loss / len(test_loader)
+            validation_losses.append(average_test_loss)
+
             logging.info(f'Epoch {epoch+1}, Test Loss: {average_test_loss}')
 
             early_stopping(average_test_loss)
@@ -85,7 +92,8 @@ def train_evaluate_model(model, train_loader, test_loader, epochs, config):
                 break
 
             model.train()
-
+            
+    plot_learning_curves(training_losses, validation_losses)
     return model
 
 def save_model(model, path):
@@ -110,6 +118,18 @@ def load_config(filepath='config/appl_model_config.json'):
     with open(filepath, 'r') as file:
         config = json.load(file)
     return config
+
+def plot_learning_curves(training_losses, validation_losses):
+    plt.figure(figsize=(10 ,5))
+    plt.plot(training_losses, label='Training Loss')
+    plt.plot(validation_losses, label='Validation Loss')
+    plt.title('Learning Curves')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig('learning_curves.png') 
+    plt.show()  
 
 def main(ticker):
     logging.info("Starting training...")    
