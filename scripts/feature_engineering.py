@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from pathlib import Path
+import argparse
 
 def reverse_dataframe(df):
     """Reverse the order of DataFrame rows."""
@@ -51,25 +52,23 @@ def get_files(directory):
     base_path = Path(directory)
     return [entry for entry in base_path.iterdir() if entry.is_file()]
 
-def main(data_folder, output_folder):
-    data_files = get_files(data_folder)
-    output_folder = Path(output_folder)
-    output_folder.mkdir(parents=True, exist_ok=True)
+def main(ticker):
+    file = f'.././data/{ticker}_daily_data.csv'
 
-    for file in data_files:
-        df = pd.read_csv(file)
-        df = reverse_dataframe(df)
-
-        calculate_moving_averages(df, [10, 20, 50, 100, 200])
-        relative_strength_index(df)
-        calculate_macd(df)
-        calculate_bollinger_bands(df)
-        calculate_historical_volatility(df)
-        calculate_momentum(df)
-
-        df = reverse_dataframe(df)
-        output_path = output_folder / f"{file.stem}_processed{file.suffix}"
-        df.to_csv(output_path, index=False)
+    df = pd.read_csv(file)
+    df = reverse_dataframe(df)
+    calculate_moving_averages(df, [10, 20, 50, 100, 200])
+    relative_strength_index(df)
+    calculate_macd(df)
+    calculate_bollinger_bands(df)
+    calculate_historical_volatility(df)
+    calculate_momentum(df)
+    df = reverse_dataframe(df)
+    df.to_csv(file, index=False)
 
 if __name__ == '__main__':
-    main('./data', './processed_data')
+    parser = argparse.ArgumentParser(description='Fetch data for a specific stock ticker.')
+    parser.add_argument('ticker', type=str, help='Stock ticker symbol')
+    args = parser.parse_args()
+
+    main(args.ticker)
