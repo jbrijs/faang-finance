@@ -39,6 +39,9 @@ def train_test_split(df):
     return training_data
 
 def scale(training_data):
+    training_data.X_train = training_data.X_train.drop('time_stamp', axis=1)
+    training_data.X_test = training_data.X_test.drop('time_stamp', axis=1)
+
     ss = StandardScaler()
     ss_features = ['open', 'high', 'low', 'SMA_10', 'EMA_10', 'SMA_20', 'EMA_20', 'SMA_50', 'EMA_50', 'SMA_100', 'EMA_100', 'SMA_200', 'EMA_200', 'EMA_Fast', 'EMA_Slow']
 
@@ -84,7 +87,8 @@ def create_sequences(input_data, seq_length):
 
 
 def main(ticker):
-    file = f'../data/{ticker}_daily_data.csv'
+    print("Preprocessing data and creating tensor sequences...")
+    file = f'data/{ticker}_daily_data.csv'
 
     data_frame = prepare_data(file)
     training_data = train_test_split(data_frame)
@@ -95,10 +99,10 @@ def main(ticker):
     X_test_sequences, y_test_sequences = create_sequences(X_test_tensor, seq_length)
 
     # Save tensors
-    torch.save(X_train_sequences, '../data/AAPL_sequences/X_train_sequences.pt')
-    torch.save(y_train_sequences, '../data/AAPL_sequences/y_train_sequences.pt')
-    torch.save(X_test_sequences, '../data/AAPL_sequences/X_test_sequences.pt')
-    torch.save(y_test_sequences, '../data/AAPL_sequences/y_test_sequences.pt')
+    torch.save(X_train_sequences, 'data/AAPL_sequences/X_train_sequences.pt')
+    torch.save(y_train_sequences, 'data/AAPL_sequences/y_train_sequences.pt')
+    torch.save(X_test_sequences, 'data/AAPL_sequences/X_test_sequences.pt')
+    torch.save(y_test_sequences, 'data/AAPL_sequences/y_test_sequences.pt')
 
 
 

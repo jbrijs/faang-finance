@@ -47,13 +47,10 @@ def calculate_momentum(df, n=10):
     """Calculate momentum."""
     df['momentum'] = df['close'] - df['close'].shift(n)
 
-def get_files(directory):
-    """Get file paths from a directory."""
-    base_path = Path(directory)
-    return [entry for entry in base_path.iterdir() if entry.is_file()]
-
 def main(ticker):
-    file = f'../data/{ticker}_daily_data.csv'
+
+    print("Engineering features ... ")
+    file = f'data/{ticker}_daily_data.csv'
 
     df = pd.read_csv(file)
     df = reverse_dataframe(df)
