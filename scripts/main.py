@@ -14,4 +14,3 @@ if __name__ == "__main__":
     run_script('scripts/data_normalization.py', args.ticker)
     run_script('scripts/feature_engineering.py', args.ticker)
     run_script('scripts/data_preprocessing.py', args.ticker)
-    run_script('scripts/train_model.py', args.ticker)
