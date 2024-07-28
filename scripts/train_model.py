@@ -6,6 +6,7 @@ import logging
 import datetime
 import json
 from tqdm import tqdm
+import matplotlib
 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -54,7 +55,7 @@ def train_evaluate_model(model, train_loader, test_loader, epochs, config):
     model.train()
     for epoch in range(epochs):
         total_loss = 0
-        
+
         train_iterator = tqdm(train_loader, desc=f'Epoch {epoch + 1}/{epochs}', total=len(train_loader))
         for X_batch, y_batch in train_loader:
             optimizer.zero_grad()
@@ -111,7 +112,9 @@ def load_config(filepath='config/appl_model_config.json'):
     return config
 
 def main(ticker):
+    logging.info("Starting training...")    
     config = load_config()
+    logging.info(f"Configuration loaded: {config}")
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     X_train_sequences = torch.load(f'data/{ticker}_sequences/X_train_sequences.pt').to(device)
@@ -129,7 +132,11 @@ def main(ticker):
     model.to(device)
 
     model = train_evaluate_model(model, train_loader, test_loader, epochs=config['epochs'], config=config)
+
+    logging.info("Model training completed.")
+    logging.info("Starting final evaluation...")
     final_evaluation(model, test_loader)
+    
     save_model(model, f'model/{ticker}_model_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.pth')
 
 if __name__ == '__main__':
