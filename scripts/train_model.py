@@ -129,7 +129,7 @@ def plot_learning_curves(training_losses, validation_losses):
     plt.legend()
     plt.grid(True)
     plt.savefig('learning_curves.png') 
-    plt.show()  
+    # plt.show()  
 
 def main(ticker):
     logging.info("Starting training...")    
@@ -167,3 +167,7 @@ if __name__ == '__main__':
     main(args.ticker)
 
 
+# Best lr: 0.0001
+# Best batch size: 25
+# best number of layers: 2
+# best hidden_dim: 50
