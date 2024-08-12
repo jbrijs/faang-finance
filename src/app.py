@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 import torch
 import numpy as np
 from lstm_model import LSTMModel 
+import pandas as pd
 
 app = Flask(__name__)
 
@@ -13,9 +14,14 @@ def load_model(ticker):
     model.eval()
     return model
 
-def preprocess_input(data):
-   
-    return torch.tensor(data, dtype=torch.float32).unsqueeze(0)
+def preprocess_input(ticker):
+    filepath = f'./data/{ticker}_daily_data.csv'
+    df = pd.read_csv(filepath)
+    df = df.drop('close', axis=1)
+    data = df.iloc[:10]
+    tensor = torch.tensor(data.values, dtype=torch.float32).unsqueeze(0)
+    return tensor
+
 
 @app.route('/predict/<ticker>', methods=['POST'])
 def predict(ticker):
