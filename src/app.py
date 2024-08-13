@@ -28,8 +28,8 @@ def preprocess_input(ticker):
     mm_features = ['RSI', 'MACD', 'Signal', 'log_returns', 'rolling_volatility', 'momentum']
 
     
-    data[ss_features] = ss.transform(data[ss_features])
-    data[mm_features] = mm.transform(data[mm_features])
+    data[ss_features] = ss.fit_transform(data[ss_features])
+    data[mm_features] = mm.fit_transform(data[mm_features])
     data['volume'] = np.log1p(data['volume'].astype(float)) 
     data['volume'] = ss.transform(data[['volume']])  
 
