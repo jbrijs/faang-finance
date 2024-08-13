@@ -3,9 +3,12 @@ import torch
 import numpy as np
 from lstm_model import LSTMModel 
 import pandas as pd
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 app = Flask(__name__)
 
+ss = StandardScaler()
+mm = MinMaxScaler()
 
 def load_model(ticker): 
     model_path = f'./models/{ticker}_Model.pth'
@@ -14,19 +17,29 @@ def load_model(ticker):
     model.eval()
     return model
 
+
 def preprocess_input(ticker):
     filepath = f'./data/{ticker}_daily_data.csv'
     df = pd.read_csv(filepath)
-    df = df.drop('close', axis=1)
-    data = df.iloc[:10]
+    df = df.drop('close', axis=1) 
+    data = df.iloc[-10:] 
+
+    ss_features = ['open', 'high', 'low', 'SMA_10', 'EMA_10', 'SMA_20', 'EMA_20', 'SMA_50', 'EMA_50', 'SMA_100', 'EMA_100', 'SMA_200', 'EMA_200', 'EMA_Fast', 'EMA_Slow']
+    mm_features = ['RSI', 'MACD', 'Signal', 'log_returns', 'rolling_volatility', 'momentum']
+
+    
+    data[ss_features] = ss.transform(data[ss_features])
+    data[mm_features] = mm.transform(data[mm_features])
+    data['volume'] = np.log1p(data['volume'].astype(float)) 
+    data['volume'] = ss.transform(data[['volume']])  
+
     tensor = torch.tensor(data.values, dtype=torch.float32).unsqueeze(0)
     return tensor
 
 
-@app.route('/predict/<ticker>', methods=['POST'])
+@app.route('/predict/<ticker>', methods=['GET'])
 def predict(ticker):
-    data = request.get_json() 
-    input_tensor = preprocess_input(data['sequence'])
+    input_tensor = preprocess_input(ticker)
     model = load_model(ticker)
     with torch.no_grad():
         output = model(input_tensor)
@@ -34,4 +47,4 @@ def predict(ticker):
     return jsonify({f'{ticker} rediction': prediction})
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
