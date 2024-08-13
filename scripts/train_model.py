@@ -157,7 +157,7 @@ def main(ticker):
     logging.info("Starting final evaluation...")
     final_evaluation(model, test_loader)
     
-    save_model(model, f'models/{ticker}_model_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.pth')
+    save_model(model, f'models/{ticker}_Model.pth')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train and evaluate an LSTM model for given stock ticker')
