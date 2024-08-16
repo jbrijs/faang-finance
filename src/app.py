@@ -17,17 +17,17 @@ def load_model(ticker):
     return model
 
 def load_ss(ticker):
-    scaler_path = f'./data/{ticker}_Sequences/ss.pkl'
+    scaler_path = f'./data/{ticker}_scalars/ss.pkl'
     ss = joblib.load(scaler_path)
     return ss
 
 def load_mm(ticker):
-    scaler_path = f'data/{ticker}_Sequences/mm.pkl'
+    scaler_path = f'data/{ticker}_scalars/mm.pkl'
     mm = joblib.load(scaler_path)
     return mm
 
 def load_vss(ticker):
-    scaler_path = f'data/{ticker}_Sequences/vss.pkl'
+    scaler_path = f'data/{ticker}_scalars/vss.pkl'
     vss = joblib.load(scaler_path)
     return vss
 
@@ -40,20 +40,28 @@ def prepare_data(ticker):
     return df.iloc[:10]
 
 def preprocess_input(df, ss, mm, vss):
-    data = data.drop('time_stamp', axis=1)
-    data['volume'] = data['volume'].astype(float)
+    # Dropping 'time_stamp' column and ensuring 'volume' is a float
+    df = df.drop('time_stamp', axis=1)
+    df['volume'] = df['volume'].astype(float)
 
-
+    # Define features for scaling
     ss_features = ['open', 'high', 'low', 'close', 'SMA_10', 'EMA_10', 'SMA_20', 'EMA_20', 'SMA_50', 'EMA_50', 'SMA_100', 'EMA_100', 'SMA_200', 'EMA_200', 'EMA_Fast', 'EMA_Slow']
     mm_features = ['RSI', 'MACD', 'Signal', 'log_returns', 'rolling_volatility', 'momentum']
 
-    
-    data[ss_features] = ss.transform(data[ss_features])
-    data[mm_features] = mm.transform(data[mm_features])
-    data['volume'] = np.log1p(data['volume'].astype(float)) 
-    data['volume'] = vss.transform(data[['volume']])  
+    # Apply transformations
+    if any(feat not in df for feat in ss_features + mm_features):
+        raise ValueError("DataFrame lacks required features for scaling")
 
-    tensor = torch.tensor(data.values, dtype=torch.float32)
+    df[ss_features] = ss.transform(df[ss_features])
+    df[mm_features] = mm.transform(df[mm_features])
+    df['volume'] = np.log1p(df['volume'])
+    df['volume'] = vss.transform(df[['volume']])
+
+    # Convert to tensor, ensuring all data is numeric and no NaN values exist
+    if df.isnull().any().any():
+        raise ValueError("NaN values found in DataFrame after processing")
+    
+    tensor = torch.tensor(df.values, dtype=torch.float32)
     return tensor
 
 @app.route('/predict/<ticker>', methods=['GET'])

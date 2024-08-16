@@ -65,9 +65,9 @@ def scale(training_data, ticker):
     training_data.X_train.loc[:, 'volume'] = volume_scaler.fit_transform(training_data.X_train[['volume']])
     training_data.X_test.loc[:, 'volume'] = volume_scaler.transform(training_data.X_test[['volume']])
 
-    joblib.dump(ss, f'data/{ticker}_Sequences/ss.pkl')
-    joblib.dump(mm, f'data/{ticker}_Sequences/mm.pkl')
-    joblib.dump(volume_scaler, f'data/{ticker}_Sequences/vss.pkl')
+    joblib.dump(ss, f'data/{ticker}_scalars/ss.pkl')
+    joblib.dump(mm, f'data/{ticker}_scalars/mm.pkl')
+    joblib.dump(volume_scaler, f'data/{ticker}_scalars/vss.pkl')
     return training_data
 
 def create_tensors(training_data):
