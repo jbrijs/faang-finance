@@ -37,11 +37,10 @@ def prepare_data(ticker):
     df['time_stamp'] = pd.to_datetime(df['time_stamp'])
     df.sort_values('time_stamp', inplace=True)
     df = df.dropna()
-    return df
+    return df.iloc[:10]
 
 def preprocess_input(df, ss, mm, vss):
-    data = df.head(10)
-    data.drop('time_stamp', axis=1)
+    data = data.drop('time_stamp', axis=1)
     data['volume'] = data['volume'].astype(float)
 
 
