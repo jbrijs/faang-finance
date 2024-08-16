@@ -4,11 +4,10 @@ import numpy as np
 from lstm_model import LSTMModel 
 import pandas as pd
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
+import joblib
 
 app = Flask(__name__)
 
-ss = StandardScaler()
-mm = MinMaxScaler()
 
 def load_model(ticker): 
     model_path = f'./models/{ticker}_Model.pth'
@@ -16,6 +15,21 @@ def load_model(ticker):
     model.load_state_dict(torch.load(model_path))
     model.eval()
     return model
+
+def load_ss(ticker):
+    scaler_path = f'./data/{ticker}_Sequences/ss.pkl'
+    ss = joblib.load(scaler_path)
+    return ss
+
+def load_mm(ticker):
+    scaler_path = f'data/{ticker}_Sequences/mm.pkl'
+    mm = joblib.load(scaler_path)
+    return mm
+
+def load_vss(ticker):
+    scaler_path = f'data/{ticker}_Sequences/vss.pkl'
+    vss = joblib.load(scaler_path)
+    return vss
 
 def prepare_data(ticker):
     filepath = f'./data/{ticker}_daily_data.csv'
@@ -25,35 +39,36 @@ def prepare_data(ticker):
     df = df.dropna()
     return df
 
+def preprocess_input(df, ss, mm, vss):
+    data = df.head(10)
+    data.drop('time_stamp', axis=1)
+    data['volume'] = data['volume'].astype(float)
 
 
-def preprocess_input(ticker):
-    filepath = f'./data/{ticker}_daily_data.csv'
-    df = pd.read_csv(filepath)
-    df = df.drop('close', axis=1) 
-    data = df.iloc[-10:] 
-
-    ss_features = ['open', 'high', 'low', 'SMA_10', 'EMA_10', 'SMA_20', 'EMA_20', 'SMA_50', 'EMA_50', 'SMA_100', 'EMA_100', 'SMA_200', 'EMA_200', 'EMA_Fast', 'EMA_Slow']
+    ss_features = ['open', 'high', 'low', 'close', 'SMA_10', 'EMA_10', 'SMA_20', 'EMA_20', 'SMA_50', 'EMA_50', 'SMA_100', 'EMA_100', 'SMA_200', 'EMA_200', 'EMA_Fast', 'EMA_Slow']
     mm_features = ['RSI', 'MACD', 'Signal', 'log_returns', 'rolling_volatility', 'momentum']
 
     
-    data[ss_features] = ss.fit_transform(data[ss_features])
-    data[mm_features] = mm.fit_transform(data[mm_features])
+    data[ss_features] = ss.transform(data[ss_features])
+    data[mm_features] = mm.transform(data[mm_features])
     data['volume'] = np.log1p(data['volume'].astype(float)) 
-    data['volume'] = ss.transform(data[['volume']])  
+    data['volume'] = vss.transform(data[['volume']])  
 
-    tensor = torch.tensor(data.values, dtype=torch.float32).unsqueeze(0)
+    tensor = torch.tensor(data.values, dtype=torch.float32)
     return tensor
-
 
 @app.route('/predict/<ticker>', methods=['GET'])
 def predict(ticker):
-    input_tensor = preprocess_input(ticker)
-    model = load_model(ticker)
+    model = load_model(ticker=ticker)
+    ss = load_ss(ticker=ticker)
+    mm = load_mm(ticker=ticker)
+    vss = load_vss(ticker=ticker)
+    dataframe = prepare_data(ticker=ticker)
+    input_tensor = preprocess_input(df=dataframe)
     with torch.no_grad():
         output = model(input_tensor)
         prediction = output.item()
-    return jsonify({f'{ticker} rediction': prediction})
+    return jsonify({f'{ticker} prediction': prediction})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

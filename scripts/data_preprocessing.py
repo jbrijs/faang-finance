@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 import argparse
+import joblib
 
 filepath = './processed_data/AAPL_daily_data_splits_processed.csv'
 
@@ -38,7 +39,7 @@ def train_test_split(df):
     training_data = TrainingData(X_train=X_train, X_test=X_test, y_train=y_train, y_test=y_test)
     return training_data
 
-def scale(training_data):
+def scale(training_data, ticker):
     training_data.X_train = training_data.X_train.drop('time_stamp', axis=1)
     training_data.X_test = training_data.X_test.drop('time_stamp', axis=1)
 
@@ -64,6 +65,9 @@ def scale(training_data):
     training_data.X_train.loc[:, 'volume'] = volume_scaler.fit_transform(training_data.X_train[['volume']])
     training_data.X_test.loc[:, 'volume'] = volume_scaler.transform(training_data.X_test[['volume']])
 
+    joblib.dump(ss, f'data/{ticker}_Sequences/ss.pkl')
+    joblib.dump(mm, f'data/{ticker}_Sequences/mm.pkl')
+    joblib.dump(volume_scaler, f'data/{ticker}_Sequences/vss.pkl')
     return training_data
 
 def create_tensors(training_data):
@@ -92,7 +96,7 @@ def main(ticker):
 
     data_frame = prepare_data(file)
     training_data = train_test_split(data_frame)
-    scaled_data = scale(training_data)
+    scaled_data = scale(training_data, ticker)
     X_train_tensor, X_test_tensor, y_train_tensor, y_test_tensor = create_tensors(scaled_data)
     seq_length = 10  # Define sequence length
     X_train_sequences, y_train_sequences = create_sequences(X_train_tensor, seq_length)
