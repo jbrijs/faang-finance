@@ -25,8 +25,8 @@ def prepare_data(filepath):
 
 def train_test_split(df):
     train_size = int(len(df) * 0.8)
-    X = df.drop('close', axis=1)
-    y = df['close']
+    X = df.copy()
+    y = df['close'].shift(-1)  # Shift 'close' up by one, so each sequence predicts the next day's close
     X_train = X.iloc[:train_size].copy()
     X_test = X.iloc[train_size:].copy()
     y_train = y.iloc[:train_size].copy()
@@ -43,7 +43,7 @@ def scale(training_data):
     training_data.X_test = training_data.X_test.drop('time_stamp', axis=1)
 
     ss = StandardScaler()
-    ss_features = ['open', 'high', 'low', 'SMA_10', 'EMA_10', 'SMA_20', 'EMA_20', 'SMA_50', 'EMA_50', 'SMA_100', 'EMA_100', 'SMA_200', 'EMA_200', 'EMA_Fast', 'EMA_Slow']
+    ss_features = ['open', 'high', 'low', 'close', 'SMA_10', 'EMA_10', 'SMA_20', 'EMA_20', 'SMA_50', 'EMA_50', 'SMA_100', 'EMA_100', 'SMA_200', 'EMA_200', 'EMA_Fast', 'EMA_Slow']
 
     training_data.X_train.loc[:, ss_features] = ss.fit_transform(training_data.X_train[ss_features])
     training_data.X_test.loc[:, ss_features] = ss.transform(training_data.X_test[ss_features])

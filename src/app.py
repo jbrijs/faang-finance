@@ -17,6 +17,15 @@ def load_model(ticker):
     model.eval()
     return model
 
+def prepare_data(ticker):
+    filepath = f'./data/{ticker}_daily_data.csv'
+    df = pd.read_csv(filepath)
+    df['time_stamp'] = pd.to_datetime(df['time_stamp'])
+    df.sort_values('time_stamp', inplace=True)
+    df = df.dropna()
+    return df
+
+
 
 def preprocess_input(ticker):
     filepath = f'./data/{ticker}_daily_data.csv'
