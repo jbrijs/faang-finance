@@ -44,10 +44,14 @@ def scale(training_data, ticker):
     training_data.X_test = training_data.X_test.drop('time_stamp', axis=1)
 
     ss = StandardScaler()
-    ss_features = ['open', 'high', 'low', 'close', 'SMA_10', 'EMA_10', 'SMA_20', 'EMA_20', 'SMA_50', 'EMA_50', 'SMA_100', 'EMA_100', 'SMA_200', 'EMA_200', 'EMA_Fast', 'EMA_Slow']
+    css = StandardScaler()
+    ss_features = ['open', 'high', 'low', 'SMA_10', 'EMA_10', 'SMA_20', 'EMA_20', 'SMA_50', 'EMA_50', 'SMA_100', 'EMA_100', 'SMA_200', 'EMA_200', 'EMA_Fast', 'EMA_Slow']
 
     training_data.X_train.loc[:, ss_features] = ss.fit_transform(training_data.X_train[ss_features])
     training_data.X_test.loc[:, ss_features] = ss.transform(training_data.X_test[ss_features])
+    # training_data.X_train.loc[:, 'close'] = css.fit_transform(training_data.X_train[['close']])
+    # training_data.X_test.loc[:, 'close'] = css.transform(training_data.X_test[['close']])
+    
 
     mm = MinMaxScaler()
     mm_features = ['RSI', 'MACD', 'Signal', 'log_returns', 'rolling_volatility', 'momentum']
@@ -65,9 +69,10 @@ def scale(training_data, ticker):
     training_data.X_train.loc[:, 'volume'] = volume_scaler.fit_transform(training_data.X_train[['volume']])
     training_data.X_test.loc[:, 'volume'] = volume_scaler.transform(training_data.X_test[['volume']])
 
-    joblib.dump(ss, f'data/{ticker}_scalars/ss.pkl')
-    joblib.dump(mm, f'data/{ticker}_scalars/mm.pkl')
-    joblib.dump(volume_scaler, f'data/{ticker}_scalars/vss.pkl')
+    joblib.dump(ss, f'data/{ticker}_scalers/ss.pkl')
+    joblib.dump(mm, f'data/{ticker}_scalers/mm.pkl')
+    joblib.dump(css, f'data/{ticker}_scalers/css.pkl')
+    joblib.dump(volume_scaler, f'data/{ticker}_scalers/vss.pkl')
     return training_data
 
 def create_tensors(training_data):
