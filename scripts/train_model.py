@@ -1,3 +1,4 @@
+from sklearn.model_selection import TimeSeriesSplit
 import torch.nn as nn
 import torch
 import torch.optim as optim
@@ -48,7 +49,7 @@ class EarlyStopping:
             self.best_loss = val_loss
             self.counter = 0
 
-def train_evaluate_model(model, train_loader, test_loader, epochs, config):
+def train_evaluate_model(model, train_loader, val_loader, config):
     criterion = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=config['learning_rate'])
     early_stopping = EarlyStopping(patience=config['patience'], min_delta=config['min_delta'])
@@ -56,63 +57,83 @@ def train_evaluate_model(model, train_loader, test_loader, epochs, config):
     training_losses = []
     validation_losses = []
 
-    model.train()
-    for epoch in range(epochs):
-        total_loss = 0
+    for epoch in range(config['epochs']):
+        model.train()
+        total_train_loss = 0
 
-        train_iterator = tqdm(train_loader, desc=f'Epoch {epoch + 1}/{epochs}', total=len(train_loader))
-        for X_batch, y_batch in train_iterator:
+        for X_batch, y_batch in train_loader:
             optimizer.zero_grad()
             outputs = model(X_batch)
             loss = criterion(outputs.squeeze(), y_batch)
             loss.backward()
             optimizer.step()
-            total_loss += loss.item()
+            total_train_loss += loss.item()
 
-        average_train_loss = total_loss / len(train_loader)
+        average_train_loss = total_train_loss / len(train_loader)
         training_losses.append(average_train_loss)
 
-        logging.info(f'Epoch {epoch+1}, Average Training Loss: {average_train_loss}')
-
         model.eval()
-        total_test_loss = 0
+        total_val_loss = 0
         with torch.no_grad():
-            for X_batch, y_batch in test_loader:
+            for X_batch, y_batch in val_loader:
                 outputs = model(X_batch)
-                loss = criterion(outputs.squeeze(), y_batch)
-                total_test_loss += loss.item()
-        average_test_loss = total_test_loss / len(test_loader)
-        validation_losses.append(average_test_loss)
+                val_loss = criterion(outputs.squeeze(), y_batch)
+                total_val_loss += val_loss.item()
 
-        logging.info(f'Epoch {epoch+1}, Test Loss: {average_test_loss}')
+        average_val_loss = total_val_loss / len(val_loader)
+        validation_losses.append(average_val_loss)
 
-        early_stopping(average_test_loss)
+        logging.info(f'Epoch {epoch+1}, Training Loss: {average_train_loss}, Validation Loss: {average_val_loss}')
+
+        early_stopping(average_val_loss)
         if early_stopping.early_stop:
             logging.info("Early stopping triggered")
             break
 
-        model.train()
+    return model, training_losses, validation_losses
 
-    plot_learning_curves(training_losses, validation_losses)
-    return model
+
+
+    return model, training_losses, validation_losses
+
+def cross_validate(data_sequences, data_labels, config):
+    tscv = TimeSeriesSplit(n_splits=5)
+    overall_val_scores = []
+
+    for train_idx, val_idx in tscv.split(data_sequences):
+        train_data = TensorDataset(data_sequences[train_idx], data_labels[train_idx])
+        val_data = TensorDataset(data_sequences[val_idx], data_labels[val_idx])
+
+        train_loader = DataLoader(train_data, batch_size=config['batch_size'], shuffle=False)
+        val_loader = DataLoader(val_data, batch_size=config['batch_size'], shuffle=False)
+
+        model = LSTMModel(data_sequences.shape[2], config['hidden_dim'], config['num_layers']).to(config['device'])
+        trained_model, train_losses, val_losses = train_evaluate_model(model, train_loader, val_loader, config)
+
+        overall_val_scores.append(val_losses[-1])
+
+    average_val_score = sum(overall_val_scores) / len(overall_val_scores)
+    logging.info(f'Average Validation Score: {average_val_score}')
+    return average_val_score
+
 
 def save_model(model, path):
     torch.save(model.state_dict(), path)
     print(f"Model saved to {path}")
 
-def final_evaluation(model, test_loader):
-    model.eval()
-    criterion = nn.MSELoss()
-    total_test_loss = 0
-    with torch.no_grad():
-        for X_batch, y_batch in tqdm(test_loader, desc='Final Evaluation', total=len(test_loader)):
-            outputs = model(X_batch)
-            loss = criterion(outputs.squeeze(), y_batch)
-            total_test_loss += loss.item()
+# def final_evaluation(model, test_loader):
+#     model.eval()
+#     criterion = nn.MSELoss()
+#     total_test_loss = 0
+#     with torch.no_grad():
+#         for X_batch, y_batch in tqdm(test_loader, desc='Final Evaluation', total=len(test_loader)):
+#             outputs = model(X_batch)
+#             loss = criterion(outputs.squeeze(), y_batch)
+#             total_test_loss += loss.item()
 
-    average_test_loss = total_test_loss / len(test_loader)
-    print(f'Final Test Loss: {average_test_loss}')
-    logging.info(f'Final Test Loss: {average_test_loss}')
+#     average_test_loss = total_test_loss / len(test_loader)
+#     print(f'Final Test Loss: {average_test_loss}')
+#     logging.info(f'Final Test Loss: {average_test_loss}')
 
 def load_config(filepath='config/aapl_model_config.json'):
     with open(filepath, 'r') as file:
@@ -132,32 +153,16 @@ def plot_learning_curves(training_losses, validation_losses):
     # plt.show()  
 
 def main(ticker):
-    logging.info("Starting training...")    
-    config = load_config()
-    logging.info(f"Configuration loaded")
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-    X_train_sequences = torch.load(f'data/{ticker}_sequences/X_train_sequences.pt',  weights_only=True).to(device)
-    y_train_sequences = torch.load(f'data/{ticker}_sequences/y_train_sequences.pt',  weights_only=True).to(device)
-    X_test_sequences = torch.load(f'data/{ticker}_sequences/X_test_sequences.pt',  weights_only=True).to(device)
-    y_test_sequences = torch.load(f'data/{ticker}_sequences/y_test_sequences.pt',  weights_only=True).to(device)
+    config = load_config()  # Ensure config has 'device' and 'epochs' defined
+    config['device'] = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
-    train_data = TensorDataset(X_train_sequences.to(device), y_train_sequences)
-    train_loader = DataLoader(train_data, batch_size=config['batch_size'], shuffle=True)
-    test_data = TensorDataset(X_test_sequences, y_test_sequences)
-    test_loader = DataLoader(test_data, batch_size=config['batch_size'], shuffle=False)
-
-    num_features = X_train_sequences.shape[2]
-    model = LSTMModel(num_features, hidden_dim=config['hidden_dim'], num_layers=config['num_layers'], output_size=1)
-    model.to(device)
-
-    model = train_evaluate_model(model, train_loader, test_loader, epochs=config['epochs'], config=config)
-
-    logging.info("Model training completed.")
-    logging.info("Starting final evaluation...")
-    final_evaluation(model, test_loader)
+    X_train_sequences = torch.load(f'data/{ticker}_sequences/simple_X_train_sequences.pt').to(config['device'])
+    y_train_sequences = torch.load(f'data/{ticker}_sequences/simple_y_train_sequences.pt').to(config['device'])
     
-    save_model(model, f'models/{ticker}_Model.pth')
+    average_val_score = cross_validate(X_train_sequences, y_train_sequences, config)
+
+    logging.info(f'Cross-validation completed. Average Validation Score: {average_val_score}')
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train and evaluate an LSTM model for given stock ticker')
