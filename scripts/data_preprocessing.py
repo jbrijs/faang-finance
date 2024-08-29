@@ -1,3 +1,4 @@
+from sklearn.model_selection import TimeSeriesSplit
 import torch
 import pandas as pd
 import numpy as np
@@ -21,42 +22,37 @@ def prepare_data(filepath):
     df['time_stamp'] = pd.to_datetime(df['time_stamp'])
     df.sort_values('time_stamp', inplace=True)
     df = df.dropna()
+    df['next_day_close'] = df['close'].shift(-1)  
     return df
 
 
 def train_test_split(df):
-    train_size = int(len(df) * 0.8)
-    X = df.copy()
-    y = df['close'].shift(-1)  # Shift 'close' up by one, so each sequence predicts the next day's close
-    X_train = X.iloc[:train_size].copy()
-    X_test = X.iloc[train_size:].copy()
-    y_train = y.iloc[:train_size].copy()
-    y_test = y.iloc[train_size:].copy() 
+    # Prepare data
+    y = df['next_day_close'].values
+    X = df.drop(columns=['next_day_close', 'time_stamp']).values
 
-    X_train['volume'] = X_train['volume'].astype(float)
-    X_test['volume'] = X_test['volume'].astype(float)
+    # Initialize TimeSeriesSplit
+    tscv = TimeSeriesSplit(n_splits=20)  
 
-    training_data = TrainingData(X_train=X_train, X_test=X_test, y_train=y_train, y_test=y_test)
+    for train_index, test_index in tscv.split(X):
+        X_train, X_test = X[train_index], X[test_index]
+        y_train, y_test = y[train_index], y[test_index]
+
+    training_data = TrainingData(X_train, X_test, y_train, y_test)
+
     return training_data
 
 def scale(training_data, ticker):
-    training_data.X_train = training_data.X_train.drop('time_stamp', axis=1)
-    training_data.X_test = training_data.X_test.drop('time_stamp', axis=1)
 
     ss = StandardScaler()
-    css = StandardScaler()
-    ss_features = ['open', 'high', 'low', 'SMA_10', 'EMA_10', 'SMA_20', 'EMA_20', 'SMA_50', 'EMA_50', 'SMA_100', 'EMA_100', 'SMA_200', 'EMA_200', 'EMA_Fast', 'EMA_Slow']
+    ss_features = ['open', 'high', 'low', 'close', 'SMA_10', 'EMA_10', 'SMA_20', 'EMA_20', 'SMA_50', 'EMA_50', 'SMA_100', 'EMA_100', 'SMA_200', 'EMA_200', 'EMA_Fast', 'EMA_Slow']
 
     training_data.X_train.loc[:, ss_features] = ss.fit_transform(training_data.X_train[ss_features])
     training_data.X_test.loc[:, ss_features] = ss.transform(training_data.X_test[ss_features])
-    # training_data.X_train.loc[:, 'close'] = css.fit_transform(training_data.X_train[['close']])
-    # training_data.X_test.loc[:, 'close'] = css.transform(training_data.X_test[['close']])
-    
 
     mm = MinMaxScaler()
     mm_features = ['RSI', 'MACD', 'Signal', 'log_returns', 'rolling_volatility', 'momentum']
 
-    # Fit on training data and transform both training and testing data
     training_data.X_train.loc[:, mm_features] = mm.fit_transform(training_data.X_train[mm_features])
     training_data.X_test.loc[:, mm_features] = mm.transform(training_data.X_test[mm_features])
 
@@ -64,15 +60,19 @@ def scale(training_data, ticker):
     training_data.X_train.loc[:, 'volume'] = np.log1p(training_data.X_train['volume'].astype(float))
     training_data.X_test.loc[:, 'volume'] = np.log1p(training_data.X_test['volume'].astype(float))
 
-    # Apply StandardScaler to 'volume'
     volume_scaler = StandardScaler()
     training_data.X_train.loc[:, 'volume'] = volume_scaler.fit_transform(training_data.X_train[['volume']])
     training_data.X_test.loc[:, 'volume'] = volume_scaler.transform(training_data.X_test[['volume']])
 
+    pred_scaler = StandardScaler()
+    training_data.y_train.loc[:, 'next_day_close'] = pred_scaler.fit_transform(training_data.y_train[['next_day_close']])
+    training_data.y_test.loc[:, 'nest_day_close'] = pred_scaler.fit_transform(training_data.y_test[['next_day_close']])
+
     joblib.dump(ss, f'data/{ticker}_scalers/ss.pkl')
     joblib.dump(mm, f'data/{ticker}_scalers/mm.pkl')
-    joblib.dump(css, f'data/{ticker}_scalers/css.pkl')
     joblib.dump(volume_scaler, f'data/{ticker}_scalers/vss.pkl')
+    joblib.dump(pred_scaler, f'data/{ticker}_scalers/css.pkl')
+
     return training_data
 
 def create_tensors(training_data):

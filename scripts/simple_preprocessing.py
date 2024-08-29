@@ -17,10 +17,10 @@ def prepare_data(filepath):
 def train_test_split(df):
     # Prepare data
     y = df['next_day_close'].values
-    X = df.drop(columns=['next_day_close', 'time_stamp']).values  # Ensure dropping correctly
+    X = df.drop(columns=['next_day_close', 'time_stamp']).values
 
     # Initialize TimeSeriesSplit
-    tscv = TimeSeriesSplit(n_splits=20)  # You can adjust n_splits based on your dataset size and needs
+    tscv = TimeSeriesSplit(n_splits=20)  
 
     for train_index, test_index in tscv.split(X):
         X_train, X_test = X[train_index], X[test_index]
