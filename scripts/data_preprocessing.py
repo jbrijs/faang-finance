@@ -27,46 +27,45 @@ def prepare_data(filepath):
 
 
 def train_test_split(df):
-    # Prepare data
-    y = df['next_day_close'].values
-    X = df.drop(columns=['next_day_close', 'time_stamp']).values
+    y = df['next_day_close']
+    X = df.drop(columns=['next_day_close', 'time_stamp'])
 
-    # Initialize TimeSeriesSplit
     tscv = TimeSeriesSplit(n_splits=20)  
 
     for train_index, test_index in tscv.split(X):
-        X_train, X_test = X[train_index], X[test_index]
-        y_train, y_test = y[train_index], y[test_index]
+        X_train, X_test = X.iloc[train_index], X.iloc[test_index]
+        y_train, y_test = y.iloc[train_index], y.iloc[test_index]
 
     training_data = TrainingData(X_train, X_test, y_train, y_test)
 
     return training_data
+
 
 def scale(training_data, ticker):
 
     ss = StandardScaler()
     ss_features = ['open', 'high', 'low', 'close', 'SMA_10', 'EMA_10', 'SMA_20', 'EMA_20', 'SMA_50', 'EMA_50', 'SMA_100', 'EMA_100', 'SMA_200', 'EMA_200', 'EMA_Fast', 'EMA_Slow']
 
-    training_data.X_train.loc[:, ss_features] = ss.fit_transform(training_data.X_train[ss_features])
-    training_data.X_test.loc[:, ss_features] = ss.transform(training_data.X_test[ss_features])
+    training_data.X_train[ss_features] = ss.fit_transform(training_data.X_train[ss_features])
+    training_data.X_test[ss_features] = ss.transform(training_data.X_test[ss_features])
 
     mm = MinMaxScaler()
     mm_features = ['RSI', 'MACD', 'Signal', 'log_returns', 'rolling_volatility', 'momentum']
 
-    training_data.X_train.loc[:, mm_features] = mm.fit_transform(training_data.X_train[mm_features])
-    training_data.X_test.loc[:, mm_features] = mm.transform(training_data.X_test[mm_features])
+    training_data.X_train[mm_features] = mm.fit_transform(training_data.X_train[mm_features])
+    training_data.X_test[mm_features] = mm.transform(training_data.X_test[mm_features])
 
     # Ensure 'volume' is float before log transformation and apply log transformation
-    training_data.X_train.loc[:, 'volume'] = np.log1p(training_data.X_train['volume'].astype(float))
-    training_data.X_test.loc[:, 'volume'] = np.log1p(training_data.X_test['volume'].astype(float))
+    training_data.X_train['volume'] = np.log1p(training_data.X_train['volume'].astype(float))
+    training_data.X_test['volume'] = np.log1p(training_data.X_test['volume'].astype(float))
 
     volume_scaler = StandardScaler()
-    training_data.X_train.loc[:, 'volume'] = volume_scaler.fit_transform(training_data.X_train[['volume']])
-    training_data.X_test.loc[:, 'volume'] = volume_scaler.transform(training_data.X_test[['volume']])
+    training_data.X_train['volume'] = volume_scaler.fit_transform(training_data.X_train[['volume']])
+    training_data.X_test['volume'] = volume_scaler.transform(training_data.X_test[['volume']])
 
     pred_scaler = StandardScaler()
-    training_data.y_train.loc[:, 'next_day_close'] = pred_scaler.fit_transform(training_data.y_train[['next_day_close']])
-    training_data.y_test.loc[:, 'nest_day_close'] = pred_scaler.fit_transform(training_data.y_test[['next_day_close']])
+    training_data.y_train = pred_scaler.fit_transform(training_data.y_train.values.reshape(-1, 1)).flatten()
+    training_data.y_test = pred_scaler.transform(training_data.y_test.values.reshape(-1, 1)).flatten()
 
     joblib.dump(ss, f'data/{ticker}_scalers/ss.pkl')
     joblib.dump(mm, f'data/{ticker}_scalers/mm.pkl')
@@ -75,12 +74,15 @@ def scale(training_data, ticker):
 
     return training_data
 
+
 def create_tensors(training_data):
     X_train_tensor = torch.tensor(training_data.X_train.values, dtype=torch.float32)
     X_test_tensor = torch.tensor(training_data.X_test.values, dtype=torch.float32)
-    y_train_tensor = torch.tensor(training_data.y_train.values, dtype=torch.float32)
-    y_test_tensor = torch.tensor(training_data.y_test.values, dtype=torch.float32)
+    y_train_tensor = torch.tensor(training_data.y_train, dtype=torch.float32)
+    y_test_tensor = torch.tensor(training_data.y_test, dtype=torch.float32)
     return X_train_tensor, X_test_tensor, y_train_tensor, y_test_tensor
+
+
 
 def create_sequences(input_data, seq_length):
     xs = []

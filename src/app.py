@@ -11,7 +11,7 @@ app = Flask(__name__)
 
 def load_model(ticker): 
     model_path = f'./models/{ticker}_Model.pth'
-    model = LSTMModel(num_features=25, hidden_dim=50, num_layers=2, output_size=1)
+    model = LSTMModel(num_features=25, hidden_dim=25, num_layers=2, output_size=1)
     model.load_state_dict(torch.load(model_path))
     model.eval()
     return model
@@ -48,18 +48,17 @@ def preprocess_input(df, ss, mm, vss, css):
     df = df.drop('time_stamp', axis=1)
     df['volume'] = df['volume'].astype(float)
 
-    ss_features = ['open', 'high', 'low', 'SMA_10', 'EMA_10', 'SMA_20', 'EMA_20', 'SMA_50', 'EMA_50', 'SMA_100', 'EMA_100', 'SMA_200', 'EMA_200', 'EMA_Fast', 'EMA_Slow']
+    ss_features = ['open', 'high', 'low', 'close', 'SMA_10', 'EMA_10', 'SMA_20', 'EMA_20', 'SMA_50', 'EMA_50', 'SMA_100', 'EMA_100', 'SMA_200', 'EMA_200', 'EMA_Fast', 'EMA_Slow']
     mm_features = ['RSI', 'MACD', 'Signal', 'log_returns', 'rolling_volatility', 'momentum']
 
     # Ensure the DataFrame only contains the features expected by the scalers
-    if set(ss_features + mm_features + ['close', 'volume']).issubset(df.columns):
+    if set(ss_features + mm_features + ['volume']).issubset(df.columns):
         df.loc[:, ss_features] = ss.transform(df[ss_features])
         df.loc[:, mm_features] = mm.transform(df[mm_features])
-        # df.loc[:, 'close'] = css.transform(df[['close']].to_numpy().reshape(-1, 1))  # Reshape for single feature
         df.loc[:, 'volume'] = np.log1p(df['volume'])
         df.loc[:, 'volume'] = vss.transform(df[['volume']].to_numpy().reshape(-1, 1))
     else:
-        missing_features = set(ss_features + mm_features + ['close', 'volume']) - set(df.columns)
+        missing_features = set(ss_features + mm_features + ['volume']) - set(df.columns)
         raise ValueError(f"Missing features for scaling: {missing_features}")
 
     tensor = torch.tensor(df.values, dtype=torch.float32).unsqueeze(0)
@@ -78,8 +77,15 @@ def predict(ticker):
     input_tensor = preprocess_input(df=dataframe, ss=ss, mm=mm, vss=vss, css=css)
     with torch.no_grad():
         output = model(input_tensor)
-        prediction = output.item()
-    return jsonify({f'{ticker} prediction': prediction})
+        prediction = output.item()  # Convert output to a float
+        prediction = np.array([prediction])  # Convert float to numpy array
+        prediction_original_scale = css.inverse_transform(prediction.reshape(-1, 1))
+
+    # Convert the numpy array back to a Python float for JSON serialization
+    prediction_original_scale = prediction_original_scale.item()
+
+    # Return the result as a JSON response
+    return jsonify({f'{ticker} prediction': prediction_original_scale, 'dataFrame': dataframe.to_dict()})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

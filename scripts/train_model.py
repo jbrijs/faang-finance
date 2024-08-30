@@ -13,21 +13,30 @@ import argparse
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-
 class LSTMModel(nn.Module):
-    def __init__(self, num_features, hidden_dim, num_layers, output_size=1):
+    def __init__(self, num_features, hidden_dim, num_layers, output_size=1, dropout_prob=0.2):
         super(LSTMModel, self).__init__()
         self.hidden_dim = hidden_dim
         self.num_layers = num_layers
-        self.lstm = nn.LSTM(num_features, hidden_dim, num_layers, batch_first=True)
+        
+        self.lstm = nn.LSTM(num_features, hidden_dim, num_layers, batch_first=True, dropout=dropout_prob if num_layers > 1 else 0)
+        
+        self.dropout = nn.Dropout(dropout_prob)
+        
         self.fc = nn.Linear(hidden_dim, output_size)
 
     def forward(self, x):
         h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(x.device)
         c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(x.device)
+        
         out, _ = self.lstm(x, (h0, c0))
-        out = self.fc(out[:, -1, :]) 
+        
+        out = self.dropout(out[:, -1, :])
+        
+        out = self.fc(out)
+        
         return out
+
     
 class EarlyStopping:
     def __init__(self, patience=10, min_delta=0):
@@ -56,6 +65,7 @@ def train_evaluate_model(model, train_loader, val_loader, config):
     
     training_losses = []
     validation_losses = []
+    best_val_loss = float('inf')
 
     for epoch in range(config['epochs']):
         model.train()
@@ -85,6 +95,12 @@ def train_evaluate_model(model, train_loader, val_loader, config):
 
         logging.info(f'Epoch {epoch+1}, Training Loss: {average_train_loss}, Validation Loss: {average_val_loss}')
 
+        # Save the model if the validation loss has decreased
+        if average_val_loss < best_val_loss:
+            best_val_loss = average_val_loss
+            save_model(model, f"./models/{config['ticker']}_model.pth")
+            logging.info(f"Model saved with validation loss: {best_val_loss}")
+
         early_stopping(average_val_loss)
         if early_stopping.early_stop:
             logging.info("Early stopping triggered")
@@ -93,8 +109,6 @@ def train_evaluate_model(model, train_loader, val_loader, config):
     return model, training_losses, validation_losses
 
 
-
-    return model, training_losses, validation_losses
 
 def cross_validate(data_sequences, data_labels, config):
     tscv = TimeSeriesSplit(n_splits=5)
@@ -155,9 +169,10 @@ def plot_learning_curves(training_losses, validation_losses):
 def main(ticker):
     config = load_config()  # Ensure config has 'device' and 'epochs' defined
     config['device'] = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    config['ticker'] = ticker
     
-    X_train_sequences = torch.load(f'data/{ticker}_sequences/simple_X_train_sequences.pt').to(config['device'])
-    y_train_sequences = torch.load(f'data/{ticker}_sequences/simple_y_train_sequences.pt').to(config['device'])
+    X_train_sequences = torch.load(f'data/{ticker}_sequences/X_train_sequences.pt').to(config['device'])
+    y_train_sequences = torch.load(f'data/{ticker}_sequences/y_train_sequences.pt').to(config['device'])
     
     average_val_score = cross_validate(X_train_sequences, y_train_sequences, config)
 
@@ -171,8 +186,13 @@ if __name__ == '__main__':
     
     main(args.ticker)
 
+# Best val loss: 0.46346
 
-# Best lr: 0.0001
-# Best batch size: 25
-# best number of layers: 2
-# best hidden_dim: 50
+#   epochs: 250,
+#   batch_size: 25,
+#   hidden_dim: 50,
+#   num_layers: 2,
+#   learning_rate: 0.0001,
+#   patience: 30,
+#   min_delta: 0.005
+
