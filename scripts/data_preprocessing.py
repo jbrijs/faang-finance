@@ -115,10 +115,10 @@ def main(ticker):
     print(f"y_test_sequence shape: {y_test_sequences.shape}")
 
     # Save tensors
-    torch.save(X_train_sequences, 'data/AAPL_sequences/X_train_sequences.pt')
-    torch.save(y_train_sequences, 'data/AAPL_sequences/y_train_sequences.pt')
-    torch.save(X_test_sequences, 'data/AAPL_sequences/X_test_sequences.pt')
-    torch.save(y_test_sequences, 'data/AAPL_sequences/y_test_sequences.pt')
+    torch.save(X_train_sequences, f'data/{ticker}_sequences/X_train_sequences.pt')
+    torch.save(y_train_sequences, f'data/{ticker}_sequences/y_train_sequences.pt')
+    torch.save(X_test_sequences, f'data/{ticker}_sequences/X_test_sequences.pt')
+    torch.save(y_test_sequences, f'data/{ticker}_sequences/y_test_sequences.pt')
 
 
 

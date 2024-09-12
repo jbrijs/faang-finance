@@ -154,7 +154,7 @@ def save_model(model, path):
 #     print(f'Final Test Loss: {average_test_loss}')
 #     logging.info(f'Final Test Loss: {average_test_loss}')
 
-def load_config(filepath='config/aapl_model_config.json'):
+def load_config(filepath='nn_config.json'):
     with open(filepath, 'r') as file:
         config = json.load(file)
     return config
