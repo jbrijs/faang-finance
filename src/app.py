@@ -11,7 +11,7 @@ app = Flask(__name__)
 
 def load_model(ticker): 
     model_path = f'./models/{ticker}_Model.pth'
-    model = LSTMModel(num_features=25, hidden_dim=25, num_layers=2, output_size=1)
+    model = LSTMModel(num_features=26, hidden_dim=25, num_layers=2, output_size=1)
     model.load_state_dict(torch.load(model_path))
     model.eval()
     return model
@@ -41,15 +41,16 @@ def prepare_data(ticker):
     df = pd.read_csv(filepath)
     df['time_stamp'] = pd.to_datetime(df['time_stamp'])
     df.sort_values('time_stamp', inplace=True)
+    df['days_since_traded'] = (df['time_stamp'] - df['time_stamp'].min()).dt.days
     df = df.dropna()
-    return df.iloc[:10]
+    return df.iloc[-10:]
 
 def preprocess_input(df, ss, mm, vss, css):
     df = df.drop('time_stamp', axis=1)
     df['volume'] = df['volume'].astype(float)
 
     ss_features = ['open', 'high', 'low', 'close', 'SMA_10', 'EMA_10', 'SMA_20', 'EMA_20', 'SMA_50', 'EMA_50', 'SMA_100', 'EMA_100', 'SMA_200', 'EMA_200', 'EMA_Fast', 'EMA_Slow']
-    mm_features = ['RSI', 'MACD', 'Signal', 'log_returns', 'rolling_volatility', 'momentum']
+    mm_features = ['RSI', 'MACD', 'Signal', 'log_returns', 'rolling_volatility', 'momentum', 'days_since_traded']
 
     # Ensure the DataFrame only contains the features expected by the scalers
     if set(ss_features + mm_features + ['volume']).issubset(df.columns):

@@ -50,7 +50,7 @@ def scale(training_data, ticker):
     training_data.X_test[ss_features] = ss.transform(training_data.X_test[ss_features])
 
     mm = MinMaxScaler()
-    mm_features = ['RSI', 'MACD', 'Signal', 'log_returns', 'rolling_volatility', 'momentum']
+    mm_features = ['RSI', 'MACD', 'Signal', 'log_returns', 'rolling_volatility', 'momentum', 'days_since_traded']
 
     training_data.X_train[mm_features] = mm.fit_transform(training_data.X_train[mm_features])
     training_data.X_test[mm_features] = mm.transform(training_data.X_test[mm_features])

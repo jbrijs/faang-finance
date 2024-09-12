@@ -114,6 +114,10 @@ def cross_validate(data_sequences, data_labels, config):
     tscv = TimeSeriesSplit(n_splits=5)
     overall_val_scores = []
 
+    window_size = 2250  # Use the last 600 data points for training
+    data_sequences = data_sequences[-window_size:]
+    data_labels = data_labels[-window_size:]
+
     for train_idx, val_idx in tscv.split(data_sequences):
         train_data = TensorDataset(data_sequences[train_idx], data_labels[train_idx])
         val_data = TensorDataset(data_sequences[val_idx], data_labels[val_idx])
@@ -129,6 +133,7 @@ def cross_validate(data_sequences, data_labels, config):
     average_val_score = sum(overall_val_scores) / len(overall_val_scores)
     logging.info(f'Average Validation Score: {average_val_score}')
     return average_val_score
+
 
 
 def save_model(model, path):

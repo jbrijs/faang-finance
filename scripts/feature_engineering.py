@@ -47,6 +47,14 @@ def calculate_momentum(df, n=10):
     """Calculate momentum."""
     df['momentum'] = df['close'] - df['close'].shift(n)
 
+def convert_date(df):
+    df['time_stamp'] = pd.to_datetime(df['time_stamp'])
+
+    # Calculate the days since the ticker started trading
+    df['days_since_traded'] = (df['time_stamp'] - df['time_stamp'].min()).dt.days
+
+    return df
+
 def main(ticker):
 
     print("Engineering features ... ")
@@ -60,6 +68,7 @@ def main(ticker):
     calculate_bollinger_bands(df)
     calculate_historical_volatility(df)
     calculate_momentum(df)
+    convert_date(df)
     df = reverse_dataframe(df)
     df.to_csv(file, index=False)
 
