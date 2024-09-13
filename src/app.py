@@ -5,40 +5,47 @@ from lstm_model import LSTMModel
 import pandas as pd
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 import joblib
+import boto3
+from io import BytesIO
 
 app = Flask(__name__)
+s3 = boto3.client('s3')
+BUCKET_NAME = 'faangfinance'
+
+def load_from_s3(bucket_name, s3_path):
+    obj = s3.get_object(Bucket=bucket_name, Key=s3_path)
+    return obj['Body'].read()
 
 
 def load_model(ticker): 
     model_path = f'./models/{ticker}_Model.pth'
+    model_data = load_from_s3(BUCKET_NAME, model_path)
     model = LSTMModel(num_features=26, hidden_dim=25, num_layers=2, output_size=1)
-    model.load_state_dict(torch.load(model_path))
+    model.load_state_dict(torch.load(BytesIO(model_data)))
     model.eval()
     return model
 
+def load_scaler(scaler_type, ticker):
+    scaler_path = f'./data/{ticker}_scalers/{scaler_type}.pkl'
+    scaler_data = load_from_s3(BUCKET_NAME, scaler_path)
+    return joblib.load(BytesIO(scaler_data))
+
 def load_ss(ticker):
-    scaler_path = f'./data/{ticker}_scalers/ss.pkl'
-    ss = joblib.load(scaler_path)
-    return ss
+    return load_scaler('ss', ticker)
 
 def load_mm(ticker):
-    scaler_path = f'data/{ticker}_scalers/mm.pkl'
-    mm = joblib.load(scaler_path)
-    return mm
+    return load_scaler('mm', ticker)
 
 def load_vss(ticker):
-    scaler_path = f'data/{ticker}_scalers/vss.pkl'
-    vss = joblib.load(scaler_path)
-    return vss
+    return load_scaler('vss', ticker)
     
 def load_css(ticker):
-    scaler_path = f'data/{ticker}_scalers/css.pkl'
-    css = joblib.load(scaler_path)
-    return css
+    return load_scaler('css', ticker)
 
 def prepare_data(ticker):
-    filepath = f'./data/{ticker}_daily_data.csv'
-    df = pd.read_csv(filepath)
+    data_path = f'./data/{ticker}_daily_data.csv'
+    data = load_from_s3(BUCKET_NAME, data_path)
+    df = pd.read_csv(BytesIO(data))
     df['time_stamp'] = pd.to_datetime(df['time_stamp'])
     df.sort_values('time_stamp', inplace=True)
     df['days_since_traded'] = (df['time_stamp'] - df['time_stamp'].min()).dt.days
