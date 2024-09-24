@@ -1,3 +1,22 @@
+import pandas as pd
+
+def apply_splits(ticker):
+    file_path = f'./data/{ticker}_daily_data.csv'
+    df = pd.read_csv(file_path)
+
+    df['time_stamp'] = pd.to_datetime(df['time_stamp'])
+
+    for split_date, ratio in sorted(splits[ticker].items(), key=lambda x: pd.to_datetime(x[0])):
+        split_date = pd.to_datetime(split_date)
+        df.loc[df['time_stamp'] <= split_date, ['open', 'high', 'low', 'close']] /= ratio
+    df['open'] = df['open'].round(2)
+    df['high'] = df['high'].round(2)
+    df['low'] = df['low'].round(2)
+    df['close'] = df['close'].round(2)
+
+    return df
+
+
 splits = {
     'AAPL': {
         '2020-08-28': 4,
