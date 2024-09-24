@@ -9,8 +9,8 @@ import boto3
 
 
 
-s3_client = boto3.client('s3', region_name='your-region', aws_access_key_id='your-access-key', aws_secret_access_key='your-secret-key')
-bucket_name = "faangfinance"
+S3_CLIENT = boto3.client('s3', region_name='your-region', aws_access_key_id='your-access-key', aws_secret_access_key='your-secret-key')
+BUCKET_NAME = "faangfinance"
 
 class TrainingData:
     def __init__(self, X_train, X_test, y_train, y_test):
@@ -69,10 +69,10 @@ def scale(training_data, ticker):
     training_data.y_train = pred_scaler.fit_transform(training_data.y_train.values.reshape(-1, 1)).flatten()
     training_data.y_test = pred_scaler.transform(training_data.y_test.values.reshape(-1, 1)).flatten()
 
-    save_scalers_to_s3(ss, 'data/{ticker}_scalers/ss.pkl')
-    save_scalers_to_s3(mm, 'data/{ticker}_scalers/mm.pkl')
-    save_scalers_to_s3(volume_scaler, 'data/{ticker}_scalers/vss.pkl')
-    save_scalers_to_s3(pred_scaler, 'data/{ticker}_scalers/css.pkl')
+    save_scalers_to_s3(ss, f'data/{ticker}_scalers/ss.pkl')
+    save_scalers_to_s3(mm, f'data/{ticker}_scalers/mm.pkl')
+    save_scalers_to_s3(volume_scaler, f'data/{ticker}_scalers/vss.pkl')
+    save_scalers_to_s3(pred_scaler, f'data/{ticker}_scalers/css.pkl')
 
     return training_data
 
@@ -80,9 +80,7 @@ def save_scalers_to_s3(scaler, s3_key):
     buffer = BytesIO()
     joblib.dump(scaler, buffer)
     buffer.seek(0)
-    s3_client.upload_fileobj(buffer, bucket_name, s3_key)
-
-
+    S3_CLIENT.upload_fileobj(buffer, BUCKET_NAME, s3_key)
 
 def create_tensors(training_data):
     X_train_tensor = torch.tensor(training_data.X_train.values, dtype=torch.float32)
@@ -105,10 +103,14 @@ def create_sequences(input_data, seq_length):
 
     return torch.stack(xs), torch.tensor(ys, dtype=torch.float32)
 
+def save_tensors_to_s3(tensor, s3_key):
+    buffer = BytesIO()
+    torch.save(tensor, buffer)
+    buffer.seek(0)
+    S3_CLIENT.upload_fileobj(buffer, BUCKET_NAME, s3_key)
+
 
 def main(ticker, df):
-   
-
     data_frame = df
     training_data = train_test_split(data_frame)
     scaled_data = scale(training_data, ticker)
@@ -123,9 +125,9 @@ def main(ticker, df):
     print(f"y_test_sequence shape: {y_test_sequences.shape}")
 
     # Save tensors
-    torch.save(X_train_sequences, f'data/{ticker}_sequences/X_train_sequences.pt')
-    torch.save(y_train_sequences, f'data/{ticker}_sequences/y_train_sequences.pt')
-    torch.save(X_test_sequences, f'data/{ticker}_sequences/X_test_sequences.pt')
-    torch.save(y_test_sequences, f'data/{ticker}_sequences/y_test_sequences.pt')
+    save_tensors_to_s3(X_train_sequences, f'data/{ticker}_sequences/X_train_sequences.pt')
+    save_tensors_to_s3(y_train_sequences, f'data/{ticker}_sequences/y_train_sequences.pt')
+    save_tensors_to_s3(X_test_sequences, f'data/{ticker}_sequences/X_test_sequences.pt')
+    save_tensors_to_s3(y_test_sequences, f'data/{ticker}_sequences/y_test_sequences.pt')
 
 
