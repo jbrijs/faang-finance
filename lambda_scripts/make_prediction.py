@@ -11,6 +11,7 @@ from io import BytesIO, StringIO
 from fetch_data import *
 from apply_splits import *
 from engineer_features import *
+from prepare_tensors import  *
 
 s3 = boto3.client('s3')
 BUCKET_NAME = 'faangfinance'
@@ -133,7 +134,7 @@ def lambda_handler(event, context):
         fetch_and_save_data(ticker, api_key)
         data_df = apply_splits(ticker)
         features_df = engineer_features(data_df)
-
+        prepare_tensors(features_df)
         prediction = make_prediction(ticker=ticker)
         save_prediction(ticker, prediction)
 
