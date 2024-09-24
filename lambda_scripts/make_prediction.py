@@ -8,10 +8,10 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 import joblib
 import boto3
 from io import BytesIO, StringIO
+import csv
 from fetch_data import *
 from apply_splits import *
 from engineer_features import *
-from prepare_tensors import  *
 
 s3 = boto3.client('s3')
 BUCKET_NAME = 'faangfinance'
@@ -25,7 +25,7 @@ def get_secret():
         response = client.get_secret_value(SecretId=secret_name)
         secret = response["SecretString"]
         secret_dict = json.loads(secret)
-        return secret_dict["API_KEY"]
+        return secret_dict["VANTAGE_API_KEY"]
     
     except Exception as e:
         print(f"Error fetching secret: {e}")
@@ -90,13 +90,12 @@ def preprocess_input(df, ss, mm, vss):
     tensor = torch.tensor(df.values, dtype=torch.float32).unsqueeze(0)
     return tensor
 
-def make_prediction(ticker):
+def make_prediction(ticker, dataframe):
     model = load_model(ticker=ticker)
     ss = load_ss(ticker=ticker)
     mm = load_mm(ticker=ticker)
     vss = load_vss(ticker=ticker)
     css = load_css(ticker=ticker)
-    dataframe = prepare_data(ticker=ticker)
     input_tensor = preprocess_input(df=dataframe, ss=ss, mm=mm, vss=vss)
     with torch.no_grad():
         output = model(input_tensor)
@@ -127,15 +126,23 @@ def save_prediction(ticker, new_prediction):
 
     s3.put_object(Bucket=BUCKET_NAME, Key=save_path, Body=csv_buffer.getvalue())
 
+def save_data(df, s3_key):
+    buffer = BytesIO()
+    csv = df.to_csv(buffer)
+    buffer.seek(0)
+    s3.upload_fileobj(buffer, BUCKET_NAME, s3_key)
+    
+
 def lambda_handler(event, context):
     api_key = get_secret()
     tickers = ['AAPL', 'GOOG', 'META', 'NFLX', 'AMZN', 'NVDA', 'MSFT', 'ADBE']
     for ticker in tickers:
+        data_file_path = f'./data/{ticker}_daily_data.csv'
         fetch_and_save_data(ticker, api_key)
         data_df = apply_splits(ticker)
         features_df = engineer_features(data_df)
-        prepare_tensors(features_df)
-        prediction = make_prediction(ticker=ticker)
+        save_data(features_df, data_file_path)
+        prediction = make_prediction(ticker=ticker, dataframe=features_df)
         save_prediction(ticker, prediction)
 
     return {
