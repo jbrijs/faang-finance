@@ -1,0 +1,4 @@
+1. Put script functionality in the flask app
+2. Configure flask app with S3
+3. Deploy flask app on AWS
+4. Set up front end on amplify and configure with S3

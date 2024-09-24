@@ -1,22 +1,37 @@
-from flask import Flask, request, jsonify
+from datetime import datetime, timedelta
+from flask import json
 import torch
 import numpy as np
-from lstm_model import LSTMModel 
+from lstm_model import LSTMModel
 import pandas as pd
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 import joblib
 import boto3
-from io import BytesIO
+from io import BytesIO, StringIO
+from fetch_data import *
 
-app = Flask(__name__)
 s3 = boto3.client('s3')
 BUCKET_NAME = 'faangfinance'
+
+def get_secret():
+    secret_name = "faang-finance-secret"
+    region_name = "us-west-1"
+
+    client = boto3.client("secretsmanager", region_name=region_name)
+    try:
+        response = client.get_secret_value(SecretId=secret_name)
+        secret = response["SecretString"]
+        secret_dict = json.loads(secret)
+        return secret_dict["API_KEY"]
+    
+    except Exception as e:
+        print(f"Error fetching secret: {e}")
+        raise e
 
 def load_from_s3(bucket_name, s3_path):
     obj = s3.get_object(Bucket=bucket_name, Key=s3_path)
     return obj['Body'].read()
-
-
+    
 def load_model(ticker): 
     model_path = f'./models/{ticker}_Model.pth'
     model_data = load_from_s3(BUCKET_NAME, model_path)
@@ -72,10 +87,7 @@ def preprocess_input(df, ss, mm, vss):
     tensor = torch.tensor(df.values, dtype=torch.float32).unsqueeze(0)
     return tensor
 
-
-
-@app.route('/predict/<ticker>', methods=['GET'])
-def predict(ticker):
+def make_prediction(ticker):
     model = load_model(ticker=ticker)
     ss = load_ss(ticker=ticker)
     mm = load_mm(ticker=ticker)
@@ -89,11 +101,39 @@ def predict(ticker):
         prediction = np.array([prediction])  # Convert float to numpy array
         prediction_original_scale = css.inverse_transform(prediction.reshape(-1, 1))
 
-    # Convert the numpy array back to a Python float for JSON serialization
     prediction_original_scale = prediction_original_scale.item()
+    return prediction_original_scale
 
-    # Return the result as a JSON response
-    return jsonify({f'{ticker} prediction': prediction_original_scale, 'dataFrame': dataframe.to_dict()})
+def save_prediction(ticker, new_prediction):
+    save_path = f'./predictions/{ticker}_predictions.csv'
+    save_data = load_from_s3(BUCKET_NAME, save_path)
+    existing_df = pd.read_csv(BytesIO(save_data))
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    next_day = datetime.now() + timedelta(days=1)
+    formatted_timestamp = next_day.strftime('%Y-%m-%d')
+
+    new_prediction_df = pd.DataFrame({
+        'time_stamp': [formatted_timestamp],  # Add timestamp
+        'prediction': [new_prediction]
+    })
+
+    updated_df = pd.concat([existing_df, new_prediction_df], ignore_index=True)
+
+    csv_buffer = StringIO()
+    updated_df.to_csv(csv_buffer, index=False)
+
+    s3.put_object(Bucket=BUCKET_NAME, Key=save_path, Body=csv_buffer.getvalue())
+
+def lambda_handler(event, context):
+    api_key = get_secret()
+    tickers = ['AAPL', 'GOOG', 'META', 'NFLX', 'AMZN', 'NVDA', 'MSFT', 'ADBE']
+    for ticker in tickers:
+        fetch_and_save_data(ticker)
+        prediction = make_prediction(ticker=ticker)
+        save_prediction(ticker, prediction)
+
+    return {
+        'statusCode': 200,
+        'body': json.dumps('Predicition added and saved to S3')
+    }
+
