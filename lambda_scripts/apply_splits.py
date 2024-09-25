@@ -1,9 +1,18 @@
 import pandas as pd
+import boto3
+
+s3 = boto3.client('s3')
+BUCKET_NAME = 'faangfinance'
+
+def load_from_s3(bucket_name, s3_path):
+    obj = s3.get_object(Bucket=bucket_name, Key=s3_path)
+    return obj['Body'].read()
 
 
 def apply_splits(ticker):
-    file_path = f'./data/{ticker}_daily_data.csv'
-    df = pd.read_csv(file_path)
+    file_path = f'data/{ticker}_daily_data.csv'
+    file = load_from_s3(bucket_name=BUCKET_NAME, s3_path=file_path)
+    df = pd.read_csv(file)
 
     df['time_stamp'] = pd.to_datetime(df['time_stamp'])
 

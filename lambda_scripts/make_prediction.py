@@ -90,7 +90,7 @@ def preprocess_input(df, ss, mm, vss):
     tensor = torch.tensor(df.values, dtype=torch.float32).unsqueeze(0)
     return tensor
 
-def make_prediction(ticker, dataframe):
+def make_and_save_prediction(ticker, dataframe):
     model = load_model(ticker=ticker)
     ss = load_ss(ticker=ticker)
     mm = load_mm(ticker=ticker)
@@ -104,6 +104,7 @@ def make_prediction(ticker, dataframe):
         prediction_original_scale = css.inverse_transform(prediction.reshape(-1, 1))
 
     prediction_original_scale = prediction_original_scale.item()
+    save_prediction(ticker, prediction_original_scale)
     return prediction_original_scale
 
 def save_prediction(ticker, new_prediction):
@@ -131,19 +132,22 @@ def save_data(df, s3_key):
     csv = df.to_csv(buffer)
     buffer.seek(0)
     s3.upload_fileobj(buffer, BUCKET_NAME, s3_key)
-    
+
+def main_pipeline(ticker):
+    data_file_path = f'./data/{ticker}_daily_data.csv'
+    api_key = get_secret()
+    fetch_and_save_data(ticker, api_key)
+    data_df = apply_splits(ticker)
+    features_df = engineer_features(data_df)
+    save_data(features_df, data_file_path)
+    make_and_save_prediction(ticker=ticker, dataframe=features_df)
+
 
 def lambda_handler(event, context):
     api_key = get_secret()
     tickers = ['AAPL', 'GOOG', 'META', 'NFLX', 'AMZN', 'NVDA', 'MSFT', 'ADBE']
     for ticker in tickers:
-        data_file_path = f'./data/{ticker}_daily_data.csv'
-        fetch_and_save_data(ticker, api_key)
-        data_df = apply_splits(ticker)
-        features_df = engineer_features(data_df)
-        save_data(features_df, data_file_path)
-        prediction = make_prediction(ticker=ticker, dataframe=features_df)
-        save_prediction(ticker, prediction)
+        main_pipeline(ticker)
 
     return {
         'statusCode': 200,
