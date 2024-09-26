@@ -36,7 +36,7 @@ def load_from_s3(bucket_name, s3_path):
     return obj['Body'].read()
     
 def load_model(ticker): 
-    model_path = f'./models/{ticker}_Model.pth'
+    model_path = f'models/{ticker}_Model.pth'
     model_data = load_from_s3(BUCKET_NAME, model_path)
     model = LSTMModel(num_features=26, hidden_dim=25, num_layers=2, output_size=1)
     model.load_state_dict(torch.load(BytesIO(model_data)))
@@ -44,7 +44,7 @@ def load_model(ticker):
     return model
 
 def load_scaler(scaler_type, ticker):
-    scaler_path = f'./data/{ticker}_scalers/{scaler_type}.pkl'
+    scaler_path = f'data/{ticker}_scalers/{scaler_type}.pkl'
     scaler_data = load_from_s3(BUCKET_NAME, scaler_path)
     return joblib.load(BytesIO(scaler_data))
 
@@ -61,7 +61,7 @@ def load_css(ticker):
     return load_scaler('css', ticker)
 
 def prepare_data(ticker):
-    data_path = f'./data/{ticker}_daily_data.csv'
+    data_path = f'data/{ticker}_daily_data.csv'
     data = load_from_s3(BUCKET_NAME, data_path)
     df = pd.read_csv(BytesIO(data))
     df['time_stamp'] = pd.to_datetime(df['time_stamp'])
@@ -108,7 +108,7 @@ def make_and_save_prediction(ticker, dataframe):
     return prediction_original_scale
 
 def save_prediction(ticker, new_prediction):
-    save_path = f'./predictions/{ticker}_predictions.csv'
+    save_path = f'predictions/{ticker}_predictions.csv'
     save_data = load_from_s3(BUCKET_NAME, save_path)
     existing_df = pd.read_csv(BytesIO(save_data))
 
@@ -134,7 +134,7 @@ def save_data(df, s3_key):
     s3.upload_fileobj(buffer, BUCKET_NAME, s3_key)
 
 def main_pipeline(ticker):
-    data_file_path = f'./data/{ticker}_daily_data.csv'
+    data_file_path = f'data/{ticker}_daily_data.csv'
     api_key = get_secret()
     fetch_and_save_data(ticker, api_key)
     data_df = apply_splits(ticker)
@@ -144,7 +144,6 @@ def main_pipeline(ticker):
 
 
 def lambda_handler(event, context):
-    api_key = get_secret()
     tickers = ['AAPL', 'GOOG', 'META', 'NFLX', 'AMZN', 'NVDA', 'MSFT', 'ADBE']
     for ticker in tickers:
         main_pipeline(ticker)
