@@ -167,7 +167,11 @@ def save_prediction(ticker, new_prediction):
     save_data = load_from_s3(BUCKET_NAME, save_path)
     existing_df = pd.read_csv(BytesIO(save_data))
 
-    next_day = datetime.now() + timedelta(days=1)
+    next_day = datetime.now()
+    if next_day.weekday() == 4:
+        next_day = next_day + timedelta(days=3)
+    else:
+        next_day = next_day + timedelta(days=1)
     formatted_timestamp = next_day.strftime('%Y-%m-%d')
 
     new_prediction_df = pd.DataFrame({
