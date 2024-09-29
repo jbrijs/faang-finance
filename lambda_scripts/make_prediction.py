@@ -10,10 +10,13 @@ import boto3
 from io import BytesIO, StringIO
 import csv
 import requests
+import os
 
-
+ALPHA_VANTAGE_API_KEY = os.environ.get('ALPHA_VANTAGE_API_KEY')
 s3 = boto3.client('s3')
 BUCKET_NAME = 'faangfinance'
+
+
 SPLITS = {
     'AAPL': {
         '2020-08-28': 4,
@@ -53,20 +56,20 @@ SPLITS = {
 }
 
 
-def get_secret():
-    secret_name = "faang-finance-secret"
-    region_name = "us-west-1"
+# def get_secret():
+#     secret_name = "faang-finance-secret"
+#     region_name = "us-west-1"
 
-    client = boto3.client("secretsmanager", region_name=region_name)
-    try:
-        response = client.get_secret_value(SecretId=secret_name)
-        secret = response["SecretString"]
-        secret_dict = json.loads(secret)
-        return secret_dict["VANTAGE_API_KEY"]
+#     client = boto3.client("secretsmanager", region_name=region_name)
+#     try:
+#         response = client.get_secret_value(SecretId=secret_name)
+#         secret = response["SecretString"]
+#         secret_dict = json.loads(secret)
+#         return secret_dict["VANTAGE_API_KEY"]
 
-    except Exception as e:
-        print(f"Error fetching secret: {e}")
-        raise e
+#     except Exception as e:
+#         print(f"Error fetching secret: {e}")
+#         raise e
 
 
 def load_from_s3(bucket_name, s3_path):
@@ -195,8 +198,8 @@ def save_data(df, s3_key):
     s3.upload_fileobj(buffer, BUCKET_NAME, s3_key)
 
 
-def fetch_and_save_data(ticker, api_key):
-    url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={ticker}&outputsize=full&apikey={api_key}"
+def fetch_and_save_data(ticker):
+    url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={ticker}&outputsize=full&apikey={ALPHA_VANTAGE_API_KEY}"
     response = requests.get(url)
     if response.status_code == 200:
         data = response.json()
@@ -237,6 +240,7 @@ def apply_splits(ticker, splits):
 
     return df
 
+
 def reverse_dataframe(df):
     """Reverse the order of DataFrame rows."""
     return df.iloc[::-1].reset_index(drop=True)
@@ -248,6 +252,7 @@ def calculate_moving_averages(df, windows):
         df[f'SMA_{window}'] = df['close'].rolling(window=window).mean()
         df[f'EMA_{window}'] = df['close'].ewm(span=window, adjust=False).mean()
 
+
 def relative_strength_index(df, window=14):
     """Calculate Relative Strength Index (RSI)."""
     delta = df['close'].diff()
@@ -258,12 +263,14 @@ def relative_strength_index(df, window=14):
     rs = avg_gain / avg_loss
     df['RSI'] = 100 - (100 / (1 + rs))
 
+
 def calculate_macd(df, slow=26, fast=12, signal=9):
     """Calculate Moving Average Convergence Divergence (MACD)."""
     df['EMA_Fast'] = df['close'].ewm(span=fast, adjust=False).mean()
     df['EMA_Slow'] = df['close'].ewm(span=slow, adjust=False).mean()
     df['MACD'] = df['EMA_Fast'] - df['EMA_Slow']
     df['Signal'] = df['MACD'].ewm(span=signal, adjust=False).mean()
+
 
 def calculate_bollinger_bands(df, window=20):
     """Calculate Bollinger Bands."""
@@ -272,22 +279,28 @@ def calculate_bollinger_bands(df, window=20):
     df['Upper_Band'] = df['SMA_20'] + (2 * rolling_std)
     df['Lower_Band'] = df['SMA_20'] - (2 * rolling_std)
 
+
 def calculate_historical_volatility(df, window=30):
     """Calculate historical volatility."""
     df['log_returns'] = np.log(df['close'] / df['close'].shift(1))
-    df['rolling_volatility'] = df['log_returns'].rolling(window=window).std() * np.sqrt(252)
+    df['rolling_volatility'] = df['log_returns'].rolling(
+        window=window).std() * np.sqrt(252)
+
 
 def calculate_momentum(df, n=10):
     """Calculate momentum."""
     df['momentum'] = df['close'] - df['close'].shift(n)
 
+
 def convert_date(df):
     df['time_stamp'] = pd.to_datetime(df['time_stamp'])
 
     # Calculate the days since the ticker started trading
-    df['days_since_traded'] = (df['time_stamp'] - df['time_stamp'].min()).dt.days
+    df['days_since_traded'] = (
+        df['time_stamp'] - df['time_stamp'].min()).dt.days
 
     return df
+
 
 def engineer_features(df):
     df = reverse_dataframe(df)
@@ -304,8 +317,7 @@ def engineer_features(df):
 
 def main_pipeline(ticker):
     data_file_path = f'data/{ticker}_daily_data.csv'
-    api_key = get_secret()
-    fetch_and_save_data(ticker=ticker, api_key=api_key)
+    fetch_and_save_data(ticker=ticker)
     data_df = apply_splits(ticker=ticker, splits=SPLITS)
     features_df = engineer_features(df=data_df)
     save_data(features_df, data_file_path)
