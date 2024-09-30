@@ -10,6 +10,7 @@ from io import BytesIO, StringIO
 import csv
 import requests
 import os
+import torch.nn as nn
 
 ALPHA_VANTAGE_API_KEY = os.environ.get('ALPHA_VANTAGE_API_KEY')
 s3 = boto3.client('s3')
