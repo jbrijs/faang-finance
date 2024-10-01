@@ -76,7 +76,7 @@ def load_from_s3(bucket_name, s3_path):
 
 
 def load_model(ticker):
-    model_path = f'models/{ticker}_Model.pth'
+    model_path = f'models/{ticker}_model.pth'
     model_data = load_from_s3(BUCKET_NAME, model_path)
     model = LSTMModel(num_features=26, hidden_dim=25,
                       num_layers=2, output_size=1)
@@ -245,6 +245,7 @@ def fetch_and_save_data(ticker):
         
         # Remove duplicates based on 'time_stamp'
         df_combined = df_combined.drop_duplicates(subset=['time_stamp'])
+        df_sorted = df_combined.sort_values('time_stamp')
         
         # Save the updated DataFrame back to S3
         save_data(df_combined, s3_key)
