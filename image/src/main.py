@@ -257,7 +257,8 @@ def fetch_and_save_data(ticker):
 def apply_splits(ticker, splits):
     file_path = f'data/{ticker}_daily_data.csv'
     file = load_from_s3(bucket_name=BUCKET_NAME, s3_path=file_path)
-    df = pd.read_csv(file)
+    file_bytes = BytesIO(file)
+    df = pd.read_csv(file_bytes)
 
     df['time_stamp'] = pd.to_datetime(df['time_stamp'])
 
