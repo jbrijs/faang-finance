@@ -45,19 +45,38 @@ def merge(ticker):
 
 
 def lambda_handler(event, context):
-    data = {}
-    ticker = event['pathParameters']['ticker']
-    df = merge(ticker)
-    df.sort_values('time_stamp', inplace=True)
-    for index, row in df.iterrows():
-        data[row['time_stamp']] = {
-            'prediction': row['prediction'],
-            'actual': row['close']
-        }
-        
-    json_data = json.dumps(data)
 
-    return {
-        'statusCode': 200,
-        'body': json_data
-    }
+    tickers = ['AAPL', 'GOOG', 'META', 'NFLX', 'AMZN', 'NVDA', 'MSFT', 'ADBE']
+
+    path_parameters = event.get("pathParameters")
+    if path_parametters is not None:
+        ticker = path_parameters.get('ticker')
+    
+    else:
+        return {
+            'statusCode': 400,
+            body: json.dumps('Invalid Request, no path parameter recognized')
+        }
+    if ticker in tickers:
+        data = {}
+        ticker = event['pathParameters']['ticker']
+        df = merge(ticker)
+        df.sort_values('time_stamp', inplace=True)
+        for index, row in df.iterrows():
+            data[row['time_stamp']] = {
+                'prediction': row['prediction'],
+                'actual': row['close']
+            }
+            
+        json_data = json.dumps(data)
+
+        return {
+            'statusCode': 200,
+            'body': json_data
+        }
+
+    else:
+        return {
+            'statusCode': 400.
+            body: json.dumps('Invalid ticker')
+        }
