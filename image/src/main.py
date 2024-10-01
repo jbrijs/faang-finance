@@ -245,7 +245,7 @@ def fetch_and_save_data(ticker):
         
         # Remove duplicates based on 'time_stamp'
         df_combined = df_combined.drop_duplicates(subset=['time_stamp'])
-        df_sorted = df_combined.sort_values('time_stamp')
+        df_sorted = df_combined.sort_values('time_stamp', ascending=False)
         
         # Save the updated DataFrame back to S3
         save_data(df_combined, s3_key)
