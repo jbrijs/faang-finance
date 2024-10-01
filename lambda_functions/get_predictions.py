@@ -1,6 +1,7 @@
 import boto3
 import pandas as pd
 from io import BytesIO
+import json
 
 s3 = boto3.client('s3')
 tickers = []
