@@ -51,11 +51,11 @@ def lambda_handler(event, context):
     path_parameters = event.get("pathParameters")
     if path_parameters is not None:
         ticker = path_parameters.get('ticker')
-    
+
     else:
         return {
             'statusCode': 400,
-            body: json.dumps('Invalid Request, no path parameter recognized')
+            'body': json.dumps('Invalid Request, no path parameter recognized')
         }
     if ticker in tickers:
         data = {}
@@ -67,7 +67,7 @@ def lambda_handler(event, context):
                 'prediction': row['prediction'],
                 'actual': row['close']
             }
-            
+
         json_data = json.dumps(data)
 
         return {
@@ -78,5 +78,5 @@ def lambda_handler(event, context):
     else:
         return {
             'statusCode': 400,
-            body: json.dumps('Invalid ticker')
+            'body': json.dumps('Invalid ticker')
         }
