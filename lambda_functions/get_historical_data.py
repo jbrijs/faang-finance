@@ -49,7 +49,7 @@ def lambda_handler(event, context):
     tickers = ['AAPL', 'GOOG', 'META', 'NFLX', 'AMZN', 'NVDA', 'MSFT', 'ADBE']
 
     path_parameters = event.get("pathParameters")
-    if path_parametters is not None:
+    if path_parameters is not None:
         ticker = path_parameters.get('ticker')
     
     else:
