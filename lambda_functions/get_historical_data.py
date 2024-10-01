@@ -58,15 +58,18 @@ def lambda_handler(event, context):
             'body': json.dumps('Invalid Request, no path parameter recognized')
         }
     if ticker in tickers:
-        data = {}
         ticker = event['pathParameters']['ticker']
         df = merge(ticker)
         df.sort_values('time_stamp', inplace=True)
+        data = []
+
         for index, row in df.iterrows():
-            data[row['time_stamp']] = {
+            data.append({
+                'time_stamp': row['time_stamp'],
                 'prediction': row['prediction'],
                 'actual': row['close']
-            }
+            })
+
 
         json_data = json.dumps(data)
 
