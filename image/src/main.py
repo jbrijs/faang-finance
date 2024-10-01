@@ -70,23 +70,6 @@ SPLITS = {
     }
 }
 
-
-# def get_secret():
-#     secret_name = "faang-finance-secret"
-#     region_name = "us-west-1"
-
-#     client = boto3.client("secretsmanager", region_name=region_name)
-#     try:
-#         response = client.get_secret_value(SecretId=secret_name)
-#         secret = response["SecretString"]
-#         secret_dict = json.loads(secret)
-#         return secret_dict["VANTAGE_API_KEY"]
-
-#     except Exception as e:
-#         print(f"Error fetching secret: {e}")
-#         raise e
-
-
 def load_from_s3(bucket_name, s3_path):
     obj = s3.get_object(Bucket=bucket_name, Key=s3_path)
     return obj['Body'].read()
@@ -214,27 +197,61 @@ def save_data(df, s3_key):
 
 
 def fetch_and_save_data(ticker):
-    url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={ticker}&outputsize=full&apikey={ALPHA_VANTAGE_API_KEY}"
+    api_key = os.environ.get('ALPHA_VANTAGE_API_KEY')
+    if not api_key:
+        return {
+            'statusCode': 500,
+            'body': 'API key not found in environment variables.'
+        }
+    
+    # Load existing data from S3
+    s3_key = f"data/{ticker}_daily_data.csv"
+    try:
+        existing_data = load_from_s3(BUCKET_NAME, s3_key)
+        df_existing = pd.read_csv(BytesIO(existing_data))
+    except Exception as e:
+        print(f"Error loading data from S3: {e}")
+        df_existing = pd.DataFrame()  # Start with an empty DataFrame if the file doesn't exist
+
+    # Fetch new data from Alpha Vantage
+    url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={ticker}&outputsize=full&apikey={api_key}"
     response = requests.get(url)
+    
     if response.status_code == 200:
         data = response.json()
         time_series = data.get('Time Series (Daily)', {})
-        filename = f"data/{ticker}_daily_data.csv"
-        keys = ['time_stamp', 'open', 'high', 'low', 'close', 'volume']
-        with open(filename, 'w', newline='') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=keys)
-            writer.writeheader()
-            for date, daily_data in time_series.items():
-                row = {'time_stamp': date,
-                       'open': daily_data.get('1. open', ''),
-                       'high': daily_data.get('2. high', ''),
-                       'low': daily_data.get('3. low', ''),
-                       'close': daily_data.get('4. close', ''),
-                       'volume': daily_data.get('5. volume', '')}
-                writer.writerow(row)
-        print(f"Data for {ticker} written to {filename}")
+        
+        # Prepare new data
+        new_rows = []
+        for date, daily_data in time_series.items():
+            row = {
+                'time_stamp': date,
+                'open': daily_data.get('1. open', ''),
+                'high': daily_data.get('2. high', ''),
+                'low': daily_data.get('3. low', ''),
+                'close': daily_data.get('4. close', ''),
+                'volume': daily_data.get('5. volume', '')
+            }
+            new_rows.append(row)
+        
+        # Create DataFrame from new rows
+        df_new = pd.DataFrame(new_rows)
+        
+        # Combine existing and new data
+        if not df_existing.empty:
+            df_combined = pd.concat([df_existing, df_new])
+        else:
+            df_combined = df_new
+        
+        # Remove duplicates based on 'time_stamp'
+        df_combined = df_combined.drop_duplicates(subset=['time_stamp'])
+        
+        # Save the updated DataFrame back to S3
+        save_data(df_combined, s3_key)
+        print(f"Data for {ticker} saved to {s3_key}")
     else:
         print(f"Failed to fetch data for {ticker}")
+
 
 
 def apply_splits(ticker, splits):
