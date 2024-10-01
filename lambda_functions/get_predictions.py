@@ -42,12 +42,14 @@ def get_previous_close(ticker):
 
 
 def lambda_handler(event, context):
-    predictions = {}
+    predictions = []
     tickers = ['AAPL', 'GOOG', 'META', 'NFLX', 'AMZN', 'NVDA', 'MSFT', 'ADBE']
     for ticker in tickers:
-        predictions[ticker] = {
+        predictions.append({
+            'ticker': ticker
             'prediction': get_prediction(ticker),
-            'prevClose': get_previous_close(ticker)}
+            'prevClose': get_previous_close(ticker)
+        })
 
     json_data = json.dumps(predictions)
 
