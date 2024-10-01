@@ -65,7 +65,7 @@ def lambda_handler(event, context):
 
         for index, row in df.iterrows():
             data.append({
-                'time_stamp': row['time_stamp'],
+                'timeStamp': row['time_stamp'],
                 'prediction': row['prediction'],
                 'actual': row['close']
             })
