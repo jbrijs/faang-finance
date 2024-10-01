@@ -46,7 +46,8 @@ def merge(ticker):
 
 def lambda_handler(event, context):
     data = {}
-    df = merge(result)
+    ticker = event['pathParameters']['ticker']
+    df = merge(ticker)
     df.sort_values('time_stamp', inplace=True)
     for index, row in df.iterrows():
         data[row['time_stamp']] = {
