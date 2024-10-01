@@ -77,6 +77,6 @@ def lambda_handler(event, context):
 
     else:
         return {
-            'statusCode': 400.
+            'statusCode': 400,
             body: json.dumps('Invalid ticker')
         }
