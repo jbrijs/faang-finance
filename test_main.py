@@ -19,19 +19,23 @@ ALPHA_VANTAGE_API_KEY = os.environ.get('ALPHA_VANTAGE_API_KEY')
 s3 = boto3.client('s3')
 BUCKET_NAME = 'faangfinance'
 
+
 class LSTMModel(nn.Module):
     def __init__(self, num_features, hidden_dim, num_layers, output_size=1):
         super(LSTMModel, self).__init__()
         self.hidden_dim = hidden_dim
         self.num_layers = num_layers
-        self.lstm = nn.LSTM(num_features, hidden_dim, num_layers, batch_first=True)
+        self.lstm = nn.LSTM(num_features, hidden_dim,
+                            num_layers, batch_first=True)
         self.fc = nn.Linear(hidden_dim, output_size)
 
     def forward(self, x):
-        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(x.device)
-        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(x.device)
+        h0 = torch.zeros(self.num_layers, x.size(0),
+                         self.hidden_dim).to(x.device)
+        c0 = torch.zeros(self.num_layers, x.size(0),
+                         self.hidden_dim).to(x.device)
         out, _ = self.lstm(x, (h0, c0))
-        out = self.fc(out[:, -1, :]) 
+        out = self.fc(out[:, -1, :])
         return out
 
 
@@ -105,63 +109,58 @@ def load_css(ticker):
 
 
 def preprocess_input(df, ss, mm, vss):
-    logger.info("Starting input preprocessing")
-    logger.info(f"Original DataFrame: {df.head()}")
-    logger.inf(f"DF Info: {df.info()}") 
-    logger.info(f"Shape of DataFrame before tensor conversion: {df.shape}")  # Should show (n, 27) if 27 features exist
+    print("Starting input preprocessing")
 
-    
     # Drop 'time_stamp' and reset index
+    df = df.loc[:10]
+    print(f"Original DataFrame: {df.head()}")
+    print(f"Shape of DataFrame before tensor conversion: {df.shape}")
     df = df.drop('time_stamp', axis=1)
-    df = df.reset_index()
+    print(f"Shape of DataFrame after date drop: {df.shape}")
+    print(f"Date drop DataFrame: {df.head()}")
+
+    df = df.reset_index(drop=True)
 
     # Convert 'volume' to float
     df['volume'] = df['volume'].astype(float)
 
     ss_features = ['open', 'high', 'low', 'close', 'SMA_10', 'EMA_10', 'SMA_20', 'EMA_20',
                    'SMA_50', 'EMA_50', 'SMA_100', 'EMA_100', 'SMA_200', 'EMA_200', 'EMA_Fast', 'EMA_Slow']
-    mm_features = ['RSI', 'MACD', 'Signal', 'log_returns', 'rolling_volatility', 'momentum', 'days_since_traded']
+    mm_features = ['RSI', 'MACD', 'Signal', 'log_returns',
+                   'rolling_volatility', 'momentum', 'days_since_traded']
     required_features = ss_features + mm_features + ['volume']
 
-    # Check for missing columns
-    if not set(required_features).issubset(df.columns):
-        missing_features = set(required_features) - set(df.columns)
-        logger.info(f"Missing features for scaling: {missing_features}")
+    # Ensure required features are in the dataframe
+    missing_features = set(required_features) - set(df.columns)
+    if missing_features:
         raise ValueError(f"Missing features for scaling: {missing_features}")
 
-    # Check for non-numeric data and extreme values
+    # Check and log non-numeric data
     for feature in required_features:
-        if df[feature].dtype != 'float64' and df[feature].dtype != 'int64':
-            logger.info(f"Feature '{feature}' contains non-numeric data or is not of type float/int.")
-            logger.info(f"Available data types: {df[feature].dtype}")
-            raise ValueError(f"Feature '{feature}' must be numeric.")
+        if df[feature].dtype not in ['float64', 'int64']:
+            raise ValueError(
+                f"Feature '{feature}' must be numeric, found {df[feature].dtype}.")
 
-        # Check for extremely large values
-        extreme_threshold = 1e10  # Set a threshold that makes sense for your data
-        if (df[feature] > extreme_threshold).any():
-            logger.info(f"Feature '{feature}' contains extreme values greater than {extreme_threshold}.")
-            extreme_values = df[feature][df[feature] > extreme_threshold]
-            logger.info(f"Extreme values in '{feature}': {extreme_values.tolist()}")
+    # Optionally handle extreme values here if needed
+    # Set 'log_returns' to zero if necessary
+    df['log_returns'] = 0.0
 
-    # Set 'log_returns' to zero if it causes issues
-    df['log_returns'] = 0.0  # Set the entire column to zero
-    logger.info("'log_returns' column has been set to zero.")
+    # Scaling features
+    df.loc[:, ss_features] = ss.transform(df[ss_features])  # StandardScaler
+    df[mm_features] = mm.transform(df[mm_features].astype(float))
+    df['volume'] = np.log1p(df['volume'])  # Log scale for volume
+    df['volume'] = vss.transform(df[['volume']])  # Volume-specific scaler
 
-    logger.info("All checks passed, proceeding with scaling.")
-    df.loc[:, ss_features] = ss.transform(df[ss_features])
-    df.loc[:, mm_features] = mm.transform(df[mm_features])
-    df.loc[:, 'volume'] = np.log1p(df['volume'])
-    df.loc[:, 'volume'] = vss.transform(df[['volume']].to_numpy().reshape(-1, 1))
+    logger.info(f"Preprocessed DataFrame: {df.head()}")
 
-    logger.info(f"Preprocessed DataFrame: {df.head()}")  # Log after transformation
+    # Convert to tensor (make sure the DataFrame is purely numeric at this point)
     tensor = torch.tensor(df.values, dtype=torch.float32).unsqueeze(0)
     logger.info("Input preprocessing complete")
+
     return tensor
 
 
-
-
-def make_and_save_prediction(ticker, dataframe):
+def make_and_save_prediction(ticker):
     model = load_model(ticker=ticker)
     ss = load_ss(ticker=ticker)
     mm = load_mm(ticker=ticker)
@@ -169,7 +168,7 @@ def make_and_save_prediction(ticker, dataframe):
     css = load_css(ticker=ticker)
     data_path = f'./data/{ticker}_daily_data_test.csv'
     df = pd.read_csv(data_path)
-    input_tensor = preprocess_input(df=dataframe, ss=ss, mm=mm, vss=vss)
+    input_tensor = preprocess_input(df=df, ss=ss, mm=mm, vss=vss)
     with torch.no_grad():
         output = model(input_tensor)
         prediction = output.item()  # Convert output to a float
@@ -178,21 +177,22 @@ def make_and_save_prediction(ticker, dataframe):
             prediction.reshape(-1, 1))
 
     prediction_original_scale = prediction_original_scale.item()
-    save_prediction(ticker, prediction_original_scale)
     return prediction_original_scale
 
 
-
 def main_pipeline(ticker):
-    make_and_save_prediction(ticker=ticker, dataframe=features_df)
+    print(make_and_save_prediction(ticker=ticker))
 
 
-def lambda_handler(event, context):
-    tickers = ['AAPL']
-    for ticker in tickers:
-        main_pipeline(ticker)
+# def lambda_handler(event, context):
+#     tickers = ['AAPL']
+#     for ticker in tickers:
+#         main_pipeline(ticker)
 
-    return {
-        'statusCode': 200,
-        'body': json.dumps('Data fetched and saved. Predicition added and saved to S3')
-    }
+#     return {
+#         'statusCode': 200,
+#         'body': json.dumps('Data fetched and saved. Predicition added and saved to S3')
+#     }
+
+if __name__ == "__main__":
+    main_pipeline('AAPL')
