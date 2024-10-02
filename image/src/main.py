@@ -367,7 +367,7 @@ def main_pipeline(ticker):
 
 
 def lambda_handler(event, context):
-    tickers = ['AAPL', 'GOOG', 'META', 'NFLX', 'AMZN', 'NVDA', 'MSFT', 'ADBE']
+    tickers = ['AAPL']
     for ticker in tickers:
         main_pipeline(ticker)
 
