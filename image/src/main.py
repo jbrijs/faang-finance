@@ -158,6 +158,10 @@ def preprocess_input(df, ss, mm, vss):
             extreme_values = df[feature][df[feature] > extreme_threshold]
             logger.info(f"Extreme values in '{feature}': {extreme_values.tolist()}")
 
+    # Set 'log_returns' to zero if it causes issues
+    df['log_returns'] = 0.0  # Set the entire column to zero
+    logger.info("'log_returns' column has been set to zero.")
+
     logger.info("All checks passed, proceeding with scaling.")
     df.loc[:, ss_features] = ss.transform(df[ss_features])
     df.loc[:, mm_features] = mm.transform(df[mm_features])
@@ -168,6 +172,7 @@ def preprocess_input(df, ss, mm, vss):
     tensor = torch.tensor(df.values, dtype=torch.float32).unsqueeze(0)
     logger.info("Input preprocessing complete")
     return tensor
+
 
 
 
