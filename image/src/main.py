@@ -115,11 +115,10 @@ def prepare_data(ticker):
     data = load_from_s3(BUCKET_NAME, data_path)
     df = pd.read_csv(BytesIO(data))
     df['time_stamp'] = pd.to_datetime(df['time_stamp'])
-    df.sort_values('time_stamp', inplace=True)
     df['days_since_traded'] = (
         df['time_stamp'] - df['time_stamp'].min()).dt.days
     df = df.dropna()
-    return df.iloc[-10:]
+    return df.iloc[:10]
 
 
 
