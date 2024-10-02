@@ -167,7 +167,7 @@ def make_and_save_prediction(ticker, dataframe):
     mm = load_mm(ticker=ticker)
     vss = load_vss(ticker=ticker)
     css = load_css(ticker=ticker)
-    data_path = f'./data/{ticker}_daily_data.csv'
+    data_path = f'./data/{ticker}_daily_data_test.csv'
     df = pd.read_csv(data_path)
     input_tensor = preprocess_input(df=dataframe, ss=ss, mm=mm, vss=vss)
     with torch.no_grad():
