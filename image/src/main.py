@@ -11,7 +11,10 @@ import csv
 import requests
 import os
 import torch.nn as nn
+import logging
 
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 ALPHA_VANTAGE_API_KEY = os.environ.get('ALPHA_VANTAGE_API_KEY')
 s3 = boto3.client('s3')
 BUCKET_NAME = 'faangfinance'
@@ -132,6 +135,7 @@ def preprocess_input(df, ss, mm, vss):
     if set(ss_features + mm_features + ['volume']).issubset(df.columns):
         df.loc[:, ss_features] = ss.transform(df[ss_features])
         df.loc[:, mm_features] = mm.transform(df[mm_features])
+        df['volume'] = df['volume'].clip(lower=0.01)
         df.loc[:, 'volume'] = np.log1p(df['volume'])
         df.loc[:, 'volume'] = vss.transform(
             df[['volume']].to_numpy().reshape(-1, 1))
@@ -191,7 +195,10 @@ def save_prediction(ticker, new_prediction):
 
 def save_data(df, s3_key):
     buffer = BytesIO()
-    csv = df.to_csv(buffer)
+    df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+    df['time_stamp'] = pd.to_datetime(df['time_stamp'])
+    df_sorted = df.sort_values(by='time_stamp', ascending=False)
+    csv = df_sorted.to_csv(buffer, mode='a', header=False, index=False)
     buffer.seek(0)
     s3.upload_fileobj(buffer, BUCKET_NAME, s3_key)
 
@@ -239,6 +246,7 @@ def fetch_and_save_data(ticker):
         
         # Combine existing and new data
         if not df_existing.empty:
+            df_existing.loc[:, ~df_existing.str.contains('^Unnamed')]
             df_combined = pd.concat([df_existing, df_new])
         else:
             df_combined = df_new
