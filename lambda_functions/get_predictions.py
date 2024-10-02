@@ -46,14 +46,9 @@ def lambda_handler(event, context):
     tickers = ['AAPL', 'GOOG', 'META', 'NFLX', 'AMZN', 'NVDA', 'MSFT', 'ADBE']
     for ticker in tickers:
         predictions.append({
-            'ticker': ticker
+            'ticker': ticker,
             'prediction': get_prediction(ticker),
             'prevClose': get_previous_close(ticker)
         })
 
-    json_data = json.dumps(predictions)
-
-    return {
-        'statusCode': 200,
-        'body': json_data
-    }
+    return predictions
