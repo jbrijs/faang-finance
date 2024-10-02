@@ -124,7 +124,10 @@ def prepare_data(ticker):
 
 def preprocess_input(df, ss, mm, vss):
     logger.info("Starting input preprocessing")
-    logger.info(f"Original DataFrame: {df.head()}")  # Log the first few rows of the dataframe
+    logger.info(f"Original DataFrame: {df.head()}")
+    logger.inf(f"DF Info: {df.info()}") 
+    logger.info(f"Shape of DataFrame before tensor conversion: {df.shape}")  # Should show (n, 27) if 27 features exist
+
     
     # Drop 'time_stamp' and reset index
     df = df.drop('time_stamp', axis=1)
