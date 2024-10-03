@@ -2,9 +2,12 @@ import boto3
 import pandas as pd
 from io import BytesIO
 import json
+import logging
+from datetime import datetime
 
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 s3 = boto3.client('s3')
-tickers = []
 bucket_name = 'faangfinance'
 
 
@@ -13,8 +16,10 @@ def get_predictions(ticker):
         file_key = f'predictions/{ticker}_predictions.csv'
         obj = s3.get_object(Bucket=bucket_name, Key=file_key)
         data = obj['Body'].read()
+        date = datetime.today().strftime('%Y-%m-%d')
 
         df = pd.read_csv(BytesIO(data))
+        df = df[df['time_stamp' != date]]
         return df
     except Exception as e:
         print(f"Error fetching prediction for {ticker}: {e}")
@@ -37,26 +42,28 @@ def get_close_prices(ticker):
 
 def merge(ticker):
     predictions_df = get_predictions(ticker)
-    close_prices = get_close_prices(ticker)
+    close_prices_df = get_close_prices(ticker)
 
     result = pd.merge(
-        predictions_df, df[['time_stamp', 'close']], on='time_stamp', how='left')
+        predictions_df, close_prices_df[['time_stamp', 'close']], on='time_stamp', how='left')
     return result
 
 
 def lambda_handler(event, context):
-
     tickers = ['AAPL', 'GOOG', 'META', 'NFLX', 'AMZN', 'NVDA', 'MSFT', 'ADBE']
 
+    # Get path parameters
     path_parameters = event.get("pathParameters")
     if path_parameters is not None:
         ticker = path_parameters.get('ticker')
-
     else:
+        logger.info("No path param recognized")
         return {
             'statusCode': 400,
             'body': json.dumps('Invalid Request, no path parameter recognized')
         }
+
+    # Check if ticker is valid
     if ticker in tickers:
         ticker = event['pathParameters']['ticker']
         df = merge(ticker)
@@ -70,12 +77,17 @@ def lambda_handler(event, context):
                 'actual': row['close']
             })
 
-
-        json_data = json.dumps(data)
-
+        logger.info('Success')
+        
+        # Properly format the response for API Gateway
         return {
             'statusCode': 200,
-            'body': json_data
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            },
+            'body': json.dumps(data), 
+            "isBase64Encoded": False
         }
 
     else:
