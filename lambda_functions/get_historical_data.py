@@ -3,7 +3,6 @@ import pandas as pd
 from io import BytesIO
 import json
 import logging
-from datetime import datetime
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -16,10 +15,9 @@ def get_predictions(ticker):
         file_key = f'predictions/{ticker}_predictions.csv'
         obj = s3.get_object(Bucket=bucket_name, Key=file_key)
         data = obj['Body'].read()
-        date = datetime.today().strftime('%Y-%m-%d')
-
         df = pd.read_csv(BytesIO(data))
-        df = df[df['time_stamp' != date]]
+        df = df.sort_values(by='time_stamp', ascending=False)
+        df = df.drop(1)
         return df
     except Exception as e:
         print(f"Error fetching prediction for {ticker}: {e}")
